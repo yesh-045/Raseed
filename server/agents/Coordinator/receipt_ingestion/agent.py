@@ -37,7 +37,7 @@ Respond only with valid JSON structured as:
 
 # 🔍 Agent
 root_agent = LlmAgent(
-    name="receipt_ingestion_direct_agent",
+    name="ReceiptIngestionAgent",
     model="gemini-2.5-flash",
     instruction=instruction_text,
     output_schema=ReceiptOutput,
