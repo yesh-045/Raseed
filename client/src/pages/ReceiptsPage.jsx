@@ -41,6 +41,23 @@ import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components';
 
 const ReceiptsPage = () => {
+  // Search bar toggle state
+  const [showSearch, setShowSearch] = useState(false);
+  const handleSearchToggle = () => setShowSearch((prev) => !prev);
+  // Sorting state
+  const [sortAnchorEl, setSortAnchorEl] = useState(null);
+  const [sortCriteria, setSortCriteria] = useState('date-desc'); // default: newest first
+
+  const handleSortClick = (event) => {
+    setSortAnchorEl(event.currentTarget);
+  };
+  const handleSortClose = () => {
+    setSortAnchorEl(null);
+  };
+  const handleSortSelect = (criteria) => {
+    setSortCriteria(criteria);
+    setSortAnchorEl(null);
+  };
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,15 +84,16 @@ const ReceiptsPage = () => {
     fetch(`http://localhost:8000/receipts/${uid}`)
       .then(res => res.json())
       .then(data => {
-        // Use data.receipts from backend response
+        // Google logo colors
+        const googleColors = ['#4285F4', '#EA4335', '#FBBC05', '#34A853'];
         const receiptsArr = Array.isArray(data.receipts) ? data.receipts : [];
-        const mapped = receiptsArr.map(r => ({
+        const mapped = receiptsArr.map((r, idx) => ({
           id: r.receipt_id || r.id,
           merchant: r.store || 'Unknown',
           total: r.total_amount ? `₹${r.total_amount}` : '',
           date: r.timestamp ? new Date(r.timestamp).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '',
           category: r.items && r.items.length > 0 ? r.items[0].category : '',
-          color: '#1976d2', // Default color, can be mapped by category
+          color: googleColors[idx % googleColors.length],
           items: r.items ? r.items.length : 0,
           location: r.location || '',
           summary: r.summary || '',
@@ -105,6 +123,27 @@ const ReceiptsPage = () => {
   const matchesTab = tabValue === 0 || receipt.category === categories[tabValue];
   return matchesSearch && matchesTab;
   });
+
+  // Sort filteredReceipts based on sortCriteria
+  const sortedReceipts = React.useMemo(() => {
+    const arr = [...filteredReceipts];
+    switch (sortCriteria) {
+      case 'date-desc':
+        return arr.sort((a, b) => new Date(b.date) - new Date(a.date));
+      case 'date-asc':
+        return arr.sort((a, b) => new Date(a.date) - new Date(b.date));
+      case 'amount-desc':
+        return arr.sort((a, b) => (parseFloat(b.total.replace(/[^\d.]/g, '')) || 0) - (parseFloat(a.total.replace(/[^\d.]/g, '')) || 0));
+      case 'amount-asc':
+        return arr.sort((a, b) => (parseFloat(a.total.replace(/[^\d.]/g, '')) || 0) - (parseFloat(b.total.replace(/[^\d.]/g, '')) || 0));
+      case 'merchant-asc':
+        return arr.sort((a, b) => a.merchant.localeCompare(b.merchant));
+      case 'merchant-desc':
+        return arr.sort((a, b) => b.merchant.localeCompare(a.merchant));
+      default:
+        return arr;
+    }
+  }, [filteredReceipts, sortCriteria]);
 
   const handleReceiptClick = (receiptId) => {
     if (selectionMode) {
@@ -265,6 +304,7 @@ const ReceiptsPage = () => {
             px: 2,
             py: 2,
             gap: 2,
+            justifyContent: 'space-between',
           }}
         >
           {selectionMode ? (
@@ -284,33 +324,67 @@ const ReceiptsPage = () => {
                 size="small"
                 sx={{ color: 'primary.main' }}
               >
-                <SelectAllIcon />
+                <CheckBoxIcon />
               </IconButton>
             </>
           ) : (
             <>
-              <IconButton
-                onClick={() => navigate('/dashboard')}
-                size="small"
-                sx={{ color: 'text.primary' }}
-              >
-                <ArrowBackIcon />
-              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton
+                  onClick={() => navigate('/dashboard')}
+                  size="small"
+                  sx={{ color: 'text.primary' }}
+                >
+                  <ArrowBackIcon />
+                </IconButton>
+              </Box>
               <Typography variant="h6" sx={{ fontWeight: 500, flex: 1 }}>
                 Receipts
               </Typography>
-              <IconButton 
-                size="small"
-                onClick={handleToggleSelectionMode}
-              >
-                <FilterIcon />
-              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton 
+                  size="small"
+                  onClick={handleToggleSelectionMode}
+                  sx={{ color: 'primary.main' }}
+                >
+                  <CheckBoxIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={handleSearchToggle}
+                  sx={{ color: 'primary.main', ml: 1 }}
+                >
+                  <SearchIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={handleSortClick}
+                  sx={{ color: 'primary.main', ml: 1 }}
+                >
+                  <FilterIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={sortAnchorEl}
+                  open={Boolean(sortAnchorEl)}
+                  onClose={handleSortClose}
+                  PaperProps={{ sx: { borderRadius: '12px', minWidth: 180 } }}
+                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                >
+                  <MenuItem onClick={() => handleSortSelect('date-desc')}>Date (Newest)</MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('date-asc')}>Date (Oldest)</MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('amount-desc')}>Amount (High to Low)</MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('amount-asc')}>Amount (Low to High)</MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('merchant-asc')}>Merchant (A-Z)</MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('merchant-desc')}>Merchant (Z-A)</MenuItem>
+                </Menu>
+              </Box>
             </>
           )}
         </Box>
 
         {/* Search Bar */}
-        {!selectionMode && (
+        {!selectionMode && showSearch && (
           <Box sx={{ px: 2, pb: 2 }}>
             <Box
               sx={{
@@ -445,7 +519,7 @@ const ReceiptsPage = () => {
             </Typography>
 
             <Stack spacing={2}>
-              {filteredReceipts.map((receipt) => (
+              {sortedReceipts.map((receipt) => (
                 <Card
                   key={receipt.id}
                   elevation={0}

@@ -14,7 +14,8 @@ from overlap_ import detect_spending_overlaps
 from pantry_ import analyze_pantry_patterns
 from micro_momen_analysist import analyze_micro_moments
 
-router = APIRouter(prefix="/api/insights", tags=["insights"])
+# Remove prefix since it's added in main.py
+router = APIRouter(tags=["insights"])
 
 @router.get("/fhs")
 async def get_financial_health_score(

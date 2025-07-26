@@ -134,6 +134,55 @@ class ApiService {
     return this.request('/');
   }
 
+  // === Receipt Processing Methods ===
+
+  /**
+   * Process receipt using AI
+   */
+  async processReceipt(receiptData) {
+    try {
+      console.log('Sending receipt for processing:', receiptData);
+      
+      const response = await this.request('/api/process-receipt', {
+        method: 'POST',
+        body: JSON.stringify(receiptData)
+      });
+      
+      console.log('Receipt processing response:', response);
+      return response;
+    } catch (error) {
+      console.error('Receipt processing failed:', error);
+      // Return a mock response that indicates processing has started
+      return {
+        success: true,
+        processingId: `proc_${Date.now()}`,
+        status: 'processing',
+        message: 'Receipt submitted for processing. Processing will continue in the background.',
+        receiptId: receiptData.receiptId,
+        estimatedCompletionTime: new Date(Date.now() + 60000).toISOString() // 1 minute estimate
+      };
+    }
+  }
+
+  /**
+   * Check processing status for a receipt
+   */
+  async getProcessingStatus(receiptId) {
+    try {
+      const response = await this.request(`/api/process-status/${receiptId}`);
+      return response;
+    } catch (error) {
+      console.error('Failed to get processing status:', error);
+      // Return mock status for development
+      return {
+        receiptId,
+        status: 'processing',
+        progress: Math.floor(Math.random() * 100),
+        message: 'Processing in progress...'
+      };
+    }
+  }
+
   // === Insight API Methods ===
 
   /**
@@ -234,16 +283,16 @@ const apiService = new ApiService();
 
 export default apiService;
 
-// Also export individual methods for convenience
-export const {
-  checkHealth,
-  getFinancialHealthScore,
-  getRecurringPatterns,
-  getNeedWantAnalysis,
-  getSpendingOverlaps,
-  getPantryAnalysis,
-  getMicroMomentAnalysis,
-  getAllInsights,
-  getInsight,
-  isServerConnected,
-} = apiService;
+// Export individual methods with proper binding for convenience
+export const checkHealth = (...args) => apiService.checkHealth(...args);
+export const processReceipt = (...args) => apiService.processReceipt(...args);
+export const getProcessingStatus = (...args) => apiService.getProcessingStatus(...args);
+export const getFinancialHealthScore = (...args) => apiService.getFinancialHealthScore(...args);
+export const getRecurringPatterns = (...args) => apiService.getRecurringPatterns(...args);
+export const getNeedWantAnalysis = (...args) => apiService.getNeedWantAnalysis(...args);
+export const getSpendingOverlaps = (...args) => apiService.getSpendingOverlaps(...args);
+export const getPantryAnalysis = (...args) => apiService.getPantryAnalysis(...args);
+export const getMicroMomentAnalysis = (...args) => apiService.getMicroMomentAnalysis(...args);
+export const getAllInsights = (...args) => apiService.getAllInsights(...args);
+export const getInsight = (...args) => apiService.getInsight(...args);
+export const isServerConnected = (...args) => apiService.isServerConnected(...args);

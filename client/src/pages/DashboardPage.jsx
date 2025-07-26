@@ -60,6 +60,8 @@ const DashboardPage = () => {
         const receiptsArr = data.receipts || [];
         // Sort by timestamp descending and take the 3 most recent
         const sorted = receiptsArr.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        // Google logo colors
+        const googleColors = ['#4285F4', '#EA4335', '#FBBC05', '#34A853'];
         const mapped = sorted.slice(0, 3).map((r, idx) => ({
           id: r.receipt_id || r.id || idx,
           store: r.store || '',
@@ -68,7 +70,7 @@ const DashboardPage = () => {
           total_amount: r.total_amount,
           items: r.items || [],
           location: r.location || '',
-          color: '#1976d2',
+          color: googleColors[idx % googleColors.length],
         }));
         setRecentActivity(mapped);
         // Update stats
@@ -359,23 +361,6 @@ const DashboardPage = () => {
                         <Typography variant="body2" color="text.secondary">
                           {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ''}
                         </Typography>
-                        {item.summary && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            {item.summary}
-                          </Typography>
-                        )}
-                        {item.items && Array.isArray(item.items) && item.items.length > 0 && (
-                          <Box sx={{ mt: 1 }}>
-                            <Typography variant="caption" color="text.secondary">Items:</Typography>
-                            <ul style={{ margin: 0, paddingLeft: 16 }}>
-                              {item.items.map((it, idx) => (
-                                <li key={idx}>
-                                  {it.item_name} ({it.category}) - {it.quantity} × ₹{it.unit_price}
-                                </li>
-                              ))}
-                            </ul>
-                          </Box>
-                        )}
                       </Box>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
                         {item.total_amount ? `₹${item.total_amount}` : ''}

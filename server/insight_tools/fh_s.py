@@ -174,18 +174,71 @@ def compute_and_update_fhs(user_id):
     patterns = result["spending_patterns"]
     overspend_rate = (patterns["overspending_frequency"] / patterns["total_receipts"] * 100) if patterns["total_receipts"] > 0 else 0
     
+    # Calculate additional metrics for enhanced display
+    total_spending = sum(patterns["categories"].values())
+    essential_total = patterns["essential_vs_nonessential"]["essential"]
+    essential_ratio = (essential_total / total_spending * 100) if total_spending > 0 else 0
+    avg_transaction = total_spending / patterns["total_receipts"] if patterns["total_receipts"] > 0 else 0
+    
+    # Determine category based on FHS score
+    fhs_score = result["fhs_score"]
+    if fhs_score >= 80:
+        category = "Excellent"
+    elif fhs_score >= 70:
+        category = "Good"
+    elif fhs_score >= 60:
+        category = "Fair"
+    elif fhs_score >= 40:
+        category = "Poor"
+    else:
+        category = "Critical"
+    
+    # Generate health indicators
+    health_indicators = []
+    
+    if essential_ratio >= 70:
+        health_indicators.append({"status": "good", "message": "✅ Good focus on essential spending"})
+    elif essential_ratio >= 50:
+        health_indicators.append({"status": "warning", "message": "⚠️ Moderate essential spending ratio"})
+    else:
+        health_indicators.append({"status": "error", "message": "❌ Low essential spending ratio"})
+    
+    if overspend_rate <= 10:
+        health_indicators.append({"status": "good", "message": "✅ Low overspending frequency"})
+    elif overspend_rate <= 25:
+        health_indicators.append({"status": "warning", "message": "⚠️ Moderate overspending frequency"})
+    else:
+        health_indicators.append({"status": "error", "message": "❌ High overspending frequency"})
+    
+    if patterns["total_receipts"] >= 10:
+        health_indicators.append({"status": "good", "message": "✅ Sufficient transaction data"})
+    else:
+        health_indicators.append({"status": "warning", "message": "⚠️ Limited transaction data"})
+    
+    if avg_transaction <= 1000:
+        health_indicators.append({"status": "good", "message": "✅ Reasonable transaction amounts"})
+    else:
+        health_indicators.append({"status": "warning", "message": "⚠️ High average transaction amount"})
+    
     return {
         "type": "fhs_analysis",
         "user_id": user_id,
         "fhs_score": result["fhs_score"],
-        "component_scores": result["breakdown"],
+        "score": result["fhs_score"],  # For compatibility
+        "category": category,
+        "breakdown": {
+            "savings": result["breakdown"]["savings_score"],
+            "essentials": result["breakdown"]["essentials_score"], 
+            "price_sensitivity": result["breakdown"]["price_score"],
+            "budget_adherence": result["breakdown"]["budget_adherence_score"],
+            "category_balance": result["breakdown"]["category_balance_score"]
+        },
+        "total_spending": round(total_spending, 2),
+        "essential_ratio": round(essential_ratio, 1),
+        "avg_transaction": round(avg_transaction, 2),
+        "health_indicators": health_indicators,
         "suggestions": result["suggestions"],
-        "insight_summary": f"FHS: {result['fhs_score']} based on {patterns['total_receipts']} receipts with {overspend_rate:.1f}% overspending rate",
-        "spending_insights": {
-            "total_receipts": patterns["total_receipts"],
-            "overspending_frequency": overspend_rate,
-            "top_categories": sorted(patterns["categories"].items(), key=lambda x: x[1], reverse=True)[:3]
-        }
+        "insight_summary": f"Your Financial Health Score is {result['fhs_score']}/100 ({category}), based on analysis of {patterns['total_receipts']} transactions with {overspend_rate:.1f}% overspending rate."
     }
 
 if __name__ == "__main__":

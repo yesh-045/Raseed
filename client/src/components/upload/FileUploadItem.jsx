@@ -18,19 +18,18 @@ import {
 
 const FileUploadItem = ({ 
   file, 
-  status = 'pending', // 'pending', 'processing', 'completed', 'error'
-  progress = 0, 
   onRemove, 
-  onView,
-  extractedData = null,
-  error = null 
+  showProgress = true,
+  disabled = false 
 }) => {
   const getStatusIcon = () => {
-    switch (status) {
+    switch (file.status) {
       case 'completed':
         return <CheckCircleIcon color="success" />;
-      case 'error':
+      case 'failed':
         return <ErrorIcon color="error" />;
+      case 'uploading':
+        return <ScheduleIcon color="primary" />;
       case 'processing':
         return <ScheduleIcon color="primary" />;
       default:
@@ -39,15 +38,31 @@ const FileUploadItem = ({
   };
 
   const getStatusColor = () => {
-    switch (status) {
+    switch (file.status) {
       case 'completed':
         return 'success';
-      case 'error':
+      case 'failed':
         return 'error';
+      case 'uploading':
       case 'processing':
         return 'primary';
       default:
         return 'default';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (file.status) {
+      case 'uploading':
+        return 'Uploading to Firebase...';
+      case 'processing':
+        return 'AI Processing...';
+      case 'completed':
+        return 'Complete';
+      case 'failed':
+        return 'Failed';
+      default:
+        return 'Pending';
     }
   };
 
@@ -77,9 +92,9 @@ const FileUploadItem = ({
               overflow: 'hidden',
             }}
           >
-            {file.type?.startsWith('image/') ? (
+            {file.file?.type?.startsWith('image/') ? (
               <img
-                src={URL.createObjectURL(file)}
+                src={URL.createObjectURL(file.file)}
                 alt={file.name}
                 style={{
                   width: '100%',
@@ -89,7 +104,7 @@ const FileUploadItem = ({
               />
             ) : (
               <Typography variant="caption" color="text.secondary">
-                PDF
+                {file.file?.type?.includes('pdf') ? 'PDF' : 'FILE'}
               </Typography>
             )}
           </Box>
@@ -117,48 +132,56 @@ const FileUploadItem = ({
                 {formatFileSize(file.size)}
               </Typography>
               <Chip
-                label={status.charAt(0).toUpperCase() + status.slice(1)}
+                label={getStatusText()}
                 size="small"
                 color={getStatusColor()}
                 variant="outlined"
               />
+              {file.firebaseId && (
+                <Typography variant="caption" color="success.main">
+                  • Uploaded
+                </Typography>
+              )}
             </Box>
 
             {/* Progress bar for processing */}
-            {status === 'processing' && (
+            {(file.status === 'uploading' || file.status === 'processing') && showProgress && (
               <LinearProgress
                 variant="determinate"
-                value={progress}
+                value={file.progress || 0}
                 sx={{ mt: 1, height: 4, borderRadius: 2 }}
               />
             )}
 
             {/* Error message */}
-            {status === 'error' && error && (
+            {file.status === 'failed' && file.error && (
               <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
-                {error}
+                {file.error}
               </Typography>
             )}
 
-            {/* Extracted data preview */}
-            {status === 'completed' && extractedData && (
+            {/* Success info */}
+            {file.status === 'completed' && (
               <Box sx={{ mt: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Merchant: {extractedData.merchant || 'Unknown'} • 
-                  Amount: ${extractedData.total || '0.00'}
+                <Typography variant="caption" color="success.main" sx={{ display: 'block' }}>
+                  ✅ Receipt uploaded and sent for AI processing
                 </Typography>
+                {file.firebaseId && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    ID: {file.firebaseId.substring(0, 8)}...
+                  </Typography>
+                )}
               </Box>
             )}
           </Box>
 
           {/* Actions */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {status === 'completed' && (
-              <IconButton size="small" onClick={() => onView?.(file)}>
-                <VisibilityIcon fontSize="small" />
-              </IconButton>
-            )}
-            <IconButton size="small" onClick={() => onRemove?.(file)}>
+            <IconButton 
+              size="small" 
+              onClick={() => onRemove?.(file.id)}
+              disabled={disabled}
+            >
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Box>

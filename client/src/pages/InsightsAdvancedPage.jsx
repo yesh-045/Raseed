@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Box } from '@mui/material';
+import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, IconButton } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getIdToken } from 'firebase/auth';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { AppHeader, PageContainer, BottomNavigation } from '../components';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
@@ -9,7 +10,6 @@ import {
   ToolSelector,
   InsightCard,
   EmptyState,
-  PeriodSummary,
   insightTools,
 } from '../components/insights';
 
@@ -118,9 +118,6 @@ const InsightsAdvancedPage = () => {
         />
 
         <Box sx={{ py: 2 }}>
-          {/* Period Summary */}
-          <PeriodSummary data={data} timeRange={timeRange} />
-
           {/* Active Insight Card */}
           {activeInsight && activeTool && (
             <InsightCard

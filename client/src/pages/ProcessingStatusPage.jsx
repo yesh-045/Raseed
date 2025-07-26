@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BottomNavigation from '../components/BottomNavigation';
+import { getProcessingStatus } from '../services/api';
 
 const ProcessingStatusPage = () => {
   const location = useLocation();
@@ -74,7 +75,7 @@ const ProcessingStatusPage = () => {
   const [stepStatuses, setStepStatuses] = useState(steps.map(step => step.status));
 
   useEffect(() => {
-    // Simulate processing steps
+    // Start processing simulation and real status checking
     const processSteps = async () => {
       for (let i = 0; i < steps.length; i++) {
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -127,7 +128,41 @@ const ProcessingStatusPage = () => {
       }, 2000);
     };
 
+    // Start the processing simulation
     processSteps();
+
+    // Poll for real processing status if we have files
+    let statusInterval;
+    if (files.length > 0) {
+      statusInterval = setInterval(async () => {
+        try {
+          for (const file of files) {
+            if (file.id) {
+              const status = await getProcessingStatus(file.id);
+              console.log(`Processing status for ${file.name}:`, status);
+              
+              // Update file status based on backend response
+              if (status.status === 'completed') {
+                setFileStatuses(prev => 
+                  prev.map((_, index) => 
+                    files[index].id === file.id ? 'completed' : prev[index]
+                  )
+                );
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to check processing status:', error);
+        }
+      }, 5000); // Check every 5 seconds
+    }
+
+    // Cleanup interval on component unmount
+    return () => {
+      if (statusInterval) {
+        clearInterval(statusInterval);
+      }
+    };
   }, [navigate, files]);
 
   const getStepIcon = (index) => {

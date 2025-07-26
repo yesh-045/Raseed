@@ -17,14 +17,12 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase Auth with Google OAuth provider
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Configure Google provider for additional scopes
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-googleProvider.addScope('https://www.googleapis.com/auth/cloud-platform'); // For Google Cloud access
 
 // Initialize Firestore
 export const db = getFirestore(app);
