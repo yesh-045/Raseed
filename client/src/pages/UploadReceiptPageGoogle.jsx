@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 // Components
 import { PageContainer, UploadDropZone, FileUploadItem } from '../components';
 
-const UploadPage = () => {
+const UploadReceiptPageGoogle = () => {
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [processing, setProcessing] = useState(false);
@@ -267,4 +267,4 @@ const UploadPage = () => {
   );
 };
 
-export default UploadPage;
+export default UploadReceiptPageGoogle;

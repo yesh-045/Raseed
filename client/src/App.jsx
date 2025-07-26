@@ -16,7 +16,10 @@ import UploadPage from './pages/UploadPage';
 import ReceiptsPage from './pages/ReceiptsPage';
 import WalletPage from './pages/WalletPage';
 import InsightsPage from './pages/InsightsPage';
+import InsightsAdvancedPage from './pages/InsightsAdvancedPage';
 import AgentPage from './pages/AgentPage';
+import ReceiptDetailPage from './pages/ReceiptDetailPage';
+
 
 const theme = createTheme({
   palette: {
@@ -193,6 +196,14 @@ function App() {
               }
             />
             <Route
+              path="/receipt/:id"
+              element={
+                <PrivateRoute>
+                  <ReceiptDetailPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/wallet"
               element={
                 <PrivateRoute>
@@ -253,6 +264,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <InsightsPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/insights/advanced"
+              element={
+                <PrivateRoute>
+                  <InsightsAdvancedPage />
                 </PrivateRoute>
               }
             />

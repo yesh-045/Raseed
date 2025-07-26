@@ -1,7 +1,4 @@
 import React, { useState } from 'react';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
-import app from '../firebase';
 import {
   Box,
   Card,
@@ -40,7 +37,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components';
 
-const ReceiptsPage = () => {
+const ReceiptsOverviewPageGoogle = () => {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,72 +47,63 @@ const ReceiptsPage = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedReceipts, setSelectedReceipts] = useState([]);
 
-  // Receipts data from backend
-  const [receipts, setReceipts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Mock receipts data - Google Pay style
+  const receipts = [
+    {
+      id: 1,
+      merchant: 'Starbucks',
+      total: '$15.47',
+      date: 'Today, 2:30 PM',
+      category: 'Coffee & Dining',
+      color: '#00704A',
+      items: 2,
+      location: 'Times Square',
+    },
+    {
+      id: 2,
+      merchant: 'Target',
+      total: '$89.23',
+      date: 'Yesterday, 4:15 PM',
+      category: 'Retail',
+      color: '#CC0000',
+      items: 5,
+      location: 'Manhattan Store',
+    },
+    {
+      id: 3,
+      merchant: 'Uber',
+      total: '$23.45',
+      date: 'Dec 22, 11:20 AM',
+      category: 'Transportation',
+      color: '#000000',
+      items: 1,
+      location: '14th St to JFK',
+    },
+    {
+      id: 4,
+      merchant: 'Whole Foods',
+      total: '$67.89',
+      date: 'Dec 21, 6:45 PM',
+      category: 'Groceries',
+      color: '#00A046',
+      items: 12,
+      location: 'Union Square',
+    },
+  ];
 
-  React.useEffect(() => {
-    // Get UID from localStorage or AuthContext (adjust as needed)
-    const auth = getAuth(app);
-    const user = auth.currentUser;
-    const uid = user.uid;
-    console.log('Fetching receipts for UID:', uid);
-    if (!uid) {
-      setLoading(false);
-      return;
-    }
-    fetch(`http://localhost:8000/receipts/${uid}`)
-      .then(res => res.json())
-      .then(data => {
-        // Use data.receipts from backend response
-        const receiptsArr = Array.isArray(data.receipts) ? data.receipts : [];
-        const mapped = receiptsArr.map(r => ({
-          id: r.receipt_id || r.id,
-          merchant: r.store || 'Unknown',
-          total: r.total_amount ? `₹${r.total_amount}` : '',
-          date: r.timestamp ? new Date(r.timestamp).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '',
-          category: r.items && r.items.length > 0 ? r.items[0].category : '',
-          color: '#1976d2', // Default color, can be mapped by category
-          items: r.items ? r.items.length : 0,
-          location: r.location || '',
-          summary: r.summary || '',
-          overspent: r.overspent,
-        }));
-        setReceipts(mapped);
-        setLoading(false);
-      })
-      .catch(() => {
-        setReceipts([]);
-        setLoading(false);
-      });
-  }, []);
-
-  // Dynamic categories from receipts
-  const categories = React.useMemo(() => {
-    const allCategories = receipts
-      .map(r => r.items && Array.isArray(r.items) ? r.items.map(item => item.category) : [r.category])
-      .flat()
-      .filter(Boolean);
-    const unique = Array.from(new Set(allCategories));
-    return ['All', ...unique];
-  }, [receipts]);
+  const categories = ['All', 'Coffee & Dining', 'Retail', 'Transportation', 'Groceries'];
 
   const filteredReceipts = receipts.filter(receipt => {
-  const matchesSearch = receipt.merchant && receipt.merchant.toLowerCase().includes(searchQuery.toLowerCase());
-  const matchesTab = tabValue === 0 || receipt.category === categories[tabValue];
-  return matchesSearch && matchesTab;
+    const matchesSearch = receipt.merchant.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTab = tabValue === 0 || receipt.category === categories[tabValue];
+    return matchesSearch && matchesTab;
   });
 
   const handleReceiptClick = (receiptId) => {
     if (selectionMode) {
       handleReceiptSelect(receiptId);
     } else {
-      // Find the actual backend id (receipt_id or id) from filteredReceipts
-      const receipt = filteredReceipts.find(r => r.id === receiptId);
-      const backendId = receipt && String(receipt.receipt_id || receipt.id);
-      if (backendId) {
-        navigate(`/receipt/${backendId}`);
-      }
+      navigate(`/receipts/${receiptId}`);
     }
   };
 
@@ -373,11 +361,7 @@ const ReceiptsPage = () => {
       </Box>
 
       <PageContainer>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-            <Typography variant="body1" color="text.secondary">Loading receipts...</Typography>
-          </Box>
-        ) : filteredReceipts.length === 0 ? (
+        {filteredReceipts.length === 0 ? (
           // Empty State
           <Box sx={{ 
             display: 'flex', 
@@ -626,4 +610,4 @@ const ReceiptsPage = () => {
   );
 };
 
-export default ReceiptsPage;
+export default ReceiptsOverviewPageGoogle;

@@ -5,7 +5,6 @@ import {
   CardContent,
   Typography,
   Grid,
-  Chip,
   LinearProgress,
   List,
   ListItem,
@@ -14,6 +13,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Avatar,
+  Button,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -22,8 +22,7 @@ import {
   LocalGasStation as GasIcon,
   ShoppingCart as ShoppingIcon,
   Coffee as CoffeeIcon,
-  Movie as EntertainmentIcon,
-  CalendarToday as CalendarIcon,
+  Analytics as AnalyticsIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, PageContainer, BottomNavigation } from '../components';
@@ -32,21 +31,16 @@ const InsightsPage = () => {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState('month');
 
-  // Mock spending data
+  // Structured mock data - easily replaceable with API
   const spendingData = {
     week: {
       total: 234.56,
       change: '+12%',
       trend: 'up',
       categories: [
-        { name: 'Food & Dining', amount: 127.43, percent: 54, icon: RestaurantIcon, color: '#1A73E8' },
-        { name: 'Gas & Transport', amount: 67.20, percent: 29, icon: GasIcon, color: '#26A69A' },
-        { name: 'Shopping', amount: 39.93, percent: 17, icon: ShoppingIcon, color: '#F9AB00' },
-      ],
-      topMerchants: [
-        { name: 'Starbucks', amount: 34.50, visits: 5 },
-        { name: 'Shell', amount: 67.20, visits: 2 },
-        { name: 'Target', amount: 28.99, visits: 1 },
+        { name: 'Food & Dining', amount: 127.43, percent: 54, icon: RestaurantIcon, color: '#1976d2' },
+        { name: 'Gas & Transport', amount: 67.20, percent: 29, icon: GasIcon, color: '#388e3c' },
+        { name: 'Shopping', amount: 39.93, percent: 17, icon: ShoppingIcon, color: '#f57c00' },
       ]
     },
     month: {
@@ -54,18 +48,10 @@ const InsightsPage = () => {
       change: '-3%',
       trend: 'down',
       categories: [
-        { name: 'Food & Dining', amount: 423.67, percent: 34, icon: RestaurantIcon, color: '#1A73E8' },
-        { name: 'Shopping', amount: 312.45, percent: 25, icon: ShoppingIcon, color: '#F9AB00' },
-        { name: 'Gas & Transport', amount: 278.90, percent: 22, icon: GasIcon, color: '#26A69A' },
-        { name: 'Coffee', amount: 156.30, percent: 13, icon: CoffeeIcon, color: '#EA4335' },
-        { name: 'Entertainment', amount: 76.57, percent: 6, icon: EntertainmentIcon, color: '#9C27B0' },
-      ],
-      topMerchants: [
-        { name: 'Whole Foods', amount: 234.67, visits: 8 },
-        { name: 'Starbucks', amount: 156.30, visits: 18 },
-        { name: 'Shell', amount: 145.20, visits: 6 },
-        { name: 'Amazon', amount: 123.45, visits: 3 },
-        { name: 'Target', amount: 89.67, visits: 4 },
+        { name: 'Food & Dining', amount: 423.67, percent: 34, icon: RestaurantIcon, color: '#1976d2' },
+        { name: 'Shopping', amount: 312.45, percent: 25, icon: ShoppingIcon, color: '#f57c00' },
+        { name: 'Gas & Transport', amount: 278.90, percent: 22, icon: GasIcon, color: '#388e3c' },
+        { name: 'Coffee', amount: 156.30, percent: 13, icon: CoffeeIcon, color: '#d32f2f' },
       ]
     }
   };
@@ -78,6 +64,30 @@ const InsightsPage = () => {
     }
   };
 
+  const handleAdvancedInsights = () => {
+    // Create serializable data without React components
+    const serializableData = {
+      total: currentData.total,
+      change: currentData.change,
+      trend: currentData.trend,
+      categories: currentData.categories.map(cat => ({
+        name: cat.name,
+        amount: cat.amount,
+        percent: cat.percent,
+        color: cat.color
+        // Remove icon component - not serializable
+      }))
+    };
+    
+    // Navigate to advanced insights page
+    navigate('/insights/advanced', { 
+      state: { 
+        timeRange, 
+        data: serializableData 
+      } 
+    });
+  };
+
   return (
     <Box sx={{ pb: 8 }}>
       <PageContainer>
@@ -88,51 +98,46 @@ const InsightsPage = () => {
         />
 
         <Box sx={{ py: 3 }}>
-          {/* Time Range Selector */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+          {/* Time Range Toggle */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
             <ToggleButtonGroup
               value={timeRange}
               exclusive
               onChange={handleTimeRangeChange}
               size="small"
-              sx={{ bgcolor: 'background.paper', borderRadius: 3 }}
+              sx={{ bgcolor: 'background.paper', borderRadius: 2 }}
             >
-              <ToggleButton value="week" sx={{ px: 3, borderRadius: 3 }}>
+              <ToggleButton value="week" sx={{ px: 3 }}>
                 This Week
               </ToggleButton>
-              <ToggleButton value="month" sx={{ px: 3, borderRadius: 3 }}>
+              <ToggleButton value="month" sx={{ px: 3 }}>
                 This Month
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
 
-          {/* Total Spending Hero Card */}
+          {/* Key Metrics Hero Card */}
           <Card 
-            elevation={2}
+            elevation={0}
             sx={{ 
               mb: 3,
-              background: 'linear-gradient(135deg, #1A73E8 0%, #1557B0 100%)',
+              background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
               color: 'white',
-              borderRadius: 3,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider'
             }}
           >
             <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <CalendarIcon sx={{ mr: 2, fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                  Total Spending
-                </Typography>
-              </Box>
-              
-              <Typography variant="h3" sx={{ fontWeight: 300, mb: 1 }}>
+              <Typography variant="h4" sx={{ fontWeight: 300, mb: 1 }}>
                 ${currentData.total.toFixed(2)}
               </Typography>
               
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {currentData.trend === 'up' ? (
-                  <TrendingUpIcon sx={{ color: '#FFF9C4' }} />
+                  <TrendingUpIcon sx={{ fontSize: 20 }} />
                 ) : (
-                  <TrendingDownIcon sx={{ color: '#FFCDD2' }} />
+                  <TrendingDownIcon sx={{ fontSize: 20 }} />
                 )}
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
                   {currentData.change} from last {timeRange}
@@ -141,33 +146,33 @@ const InsightsPage = () => {
             </CardContent>
           </Card>
 
-          {/* Categories Breakdown */}
-          <Card elevation={1} sx={{ mb: 3, borderRadius: 3 }}>
+          {/* Category Breakdown */}
+          <Card elevation={0} sx={{ mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
-                Spending by Category
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Categories
               </Typography>
               
-              <List>
+              <List disablePadding>
                 {currentData.categories.map((category, index) => {
                   const IconComponent = category.icon;
                   return (
                     <ListItem key={index} sx={{ px: 0, py: 1.5 }}>
-                      <ListItemIcon>
+                      <ListItemIcon sx={{ minWidth: 48 }}>
                         <Avatar 
                           sx={{ 
                             bgcolor: category.color,
-                            width: 40, 
-                            height: 40 
+                            width: 36, 
+                            height: 36 
                           }}
                         >
-                          <IconComponent sx={{ fontSize: 20 }} />
+                          <IconComponent sx={{ fontSize: 18 }} />
                         </Avatar>
                       </ListItemIcon>
                       
                       <ListItemText
                         primary={
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                             <Typography variant="body1" sx={{ fontWeight: 500 }}>
                               {category.name}
                             </Typography>
@@ -182,17 +187,17 @@ const InsightsPage = () => {
                               variant="determinate"
                               value={category.percent}
                               sx={{
-                                height: 6,
-                                borderRadius: 3,
+                                height: 4,
+                                borderRadius: 2,
                                 bgcolor: 'grey.200',
                                 '& .MuiLinearProgress-bar': {
                                   bgcolor: category.color,
-                                  borderRadius: 3,
+                                  borderRadius: 2,
                                 }
                               }}
                             />
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                              {category.percent}% of total spending
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                              {category.percent}% of total
                             </Typography>
                           </Box>
                         }
@@ -204,56 +209,10 @@ const InsightsPage = () => {
             </CardContent>
           </Card>
 
-          {/* Top Merchants */}
-          <Card elevation={1} sx={{ borderRadius: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
-                Top Merchants
-              </Typography>
-              
-              <List>
-                {currentData.topMerchants.map((merchant, index) => (
-                  <ListItem key={index} sx={{ px: 0, py: 1 }}>
-                    <ListItemIcon>
-                      <Chip
-                        label={index + 1}
-                        size="small"
-                        sx={{
-                          bgcolor: index === 0 ? '#1A73E8' : 'grey.300',
-                          color: index === 0 ? 'white' : 'text.primary',
-                          fontWeight: 600,
-                          minWidth: 28,
-                        }}
-                      />
-                    </ListItemIcon>
-                    
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            {merchant.name}
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                            ${merchant.amount.toFixed(2)}
-                          </Typography>
-                        </Box>
-                      }
-                      secondary={
-                        <Typography variant="caption" color="text.secondary">
-                          {merchant.visits} {merchant.visits === 1 ? 'visit' : 'visits'}
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats Grid */}
-          <Grid container spacing={2} sx={{ mt: 2 }}>
+          {/* Quick Stats */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={6}>
-              <Card elevation={1} sx={{ borderRadius: 2, textAlign: 'center' }}>
+              <Card elevation={0} sx={{ borderRadius: 2, textAlign: 'center', border: '1px solid', borderColor: 'divider' }}>
                 <CardContent sx={{ py: 2 }}>
                   <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>
                     {currentData.categories.length}
@@ -266,7 +225,7 @@ const InsightsPage = () => {
             </Grid>
             
             <Grid item xs={6}>
-              <Card elevation={1} sx={{ borderRadius: 2, textAlign: 'center' }}>
+              <Card elevation={0} sx={{ borderRadius: 2, textAlign: 'center', border: '1px solid', borderColor: 'divider' }}>
                 <CardContent sx={{ py: 2 }}>
                   <Typography variant="h5" sx={{ fontWeight: 600, color: 'secondary.main' }}>
                     ${(currentData.total / (timeRange === 'week' ? 7 : 30)).toFixed(0)}
@@ -278,6 +237,23 @@ const InsightsPage = () => {
               </Card>
             </Grid>
           </Grid>
+
+          {/* Advanced Insights Button */}
+          <Button
+            variant="outlined"
+            fullWidth
+            startIcon={<AnalyticsIcon />}
+            onClick={handleAdvancedInsights}
+            sx={{
+              py: 1.5,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontSize: '1rem',
+              fontWeight: 500
+            }}
+          >
+            Advanced Insights
+          </Button>
         </Box>
       </PageContainer>
 
