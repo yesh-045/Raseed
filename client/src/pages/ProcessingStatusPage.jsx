@@ -19,6 +19,7 @@ import {
 import {
   CloudUpload as UploadIcon,
   Psychology as AIIcon,
+
   AutoAwesome as ProcessingIcon,
   AccountBalanceWallet as WalletIcon,
   CheckCircle as CheckIcon
@@ -32,10 +33,14 @@ const ProcessingStatusPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
+  // Get files from location state first
+  const files = location.state?.files || [];
+  
   const [activeStep, setActiveStep] = useState(0);
   const [processingComplete, setProcessingComplete] = useState(false);
-  const files = location.state?.files || [];
-
+  const [fileStatuses, setFileStatuses] = useState(files.map(() => 'processing'));
+  
+  // Define steps first before calculating progress
   const steps = [
     {
       label: 'File Upload',
@@ -56,12 +61,15 @@ const ProcessingStatusPage = () => {
       status: 'pending'
     },
     {
-      label: 'Wallet Pass Generation',
-      description: 'Creating your Google Wallet passes',
-      icon: <WalletIcon />,
+      label: 'Data Extraction Complete',
+      description: 'Ready for your review and confirmation',
+      icon: <CheckIcon />,
       status: 'pending'
     }
   ];
+  
+  // Calculate global progress
+  const globalProgress = (activeStep / steps.length) * 100;
 
   const [stepStatuses, setStepStatuses] = useState(steps.map(step => step.status));
 
@@ -70,6 +78,11 @@ const ProcessingStatusPage = () => {
     const processSteps = async () => {
       for (let i = 0; i < steps.length; i++) {
         await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Update file statuses progressively (simulate per-file completion)
+        if (i === steps.length - 1) {
+          setFileStatuses(prev => prev.map(() => 'completed'));
+        }
         
         setStepStatuses(prev => {
           const newStatuses = [...prev];
@@ -80,14 +93,42 @@ const ProcessingStatusPage = () => {
           return newStatuses;
         });
         
+        // Add delay before updating active step for smoother animation
+        await new Promise(resolve => setTimeout(resolve, 300));
         setActiveStep(i + 1);
       }
       
       setProcessingComplete(true);
+      
+      // Auto-redirect after completion with short delay
+      setTimeout(() => {
+        navigate('/receipt-review', { 
+          state: { 
+            files: files,
+            extractedData: {
+              // Stub extracted data from AI processing
+              merchant: 'Starbucks Coffee',
+              date: '2024-01-15',
+              time: '14:30',
+              total: '15.47',
+              category: 'Coffee & Dining',
+              paymentMethod: 'Credit Card',
+              location: '123 Main Street, Downtown',
+              items: [
+                { name: 'Grande Latte', quantity: 1, price: '5.25' },
+                { name: 'Blueberry Scone', quantity: 1, price: '3.95' },
+                { name: 'Americano', quantity: 2, price: '3.14' }
+              ],
+              tax: '1.23',
+              tip: '1.90'
+            }
+          }
+        });
+      }, 2000);
     };
 
     processSteps();
-  }, []);
+  }, [navigate, files]);
 
   const getStepIcon = (index) => {
     const status = stepStatuses[index];
@@ -111,6 +152,22 @@ const ProcessingStatusPage = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
+      {/* Global Progress Bar */}
+      {!processingComplete && (
+        <LinearProgress 
+          variant="determinate" 
+          value={globalProgress}
+          sx={{ 
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1100,
+            height: 4
+          }} 
+        />
+      )}
+      
       <Container maxWidth="md" sx={{ py: 4, pb: isMobile ? 12 : 4 }}>
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" sx={{ mb: 1, fontWeight: 600 }}>
@@ -139,11 +196,11 @@ const ProcessingStatusPage = () => {
                   borderColor: 'divider'
                 }}
               >
-                <Typography variant="body2">{file.name}</Typography>
+                <Typography variant="body2">{file.name || `Receipt ${index + 1}`}</Typography>
                 <Chip
-                  label={processingComplete ? 'Completed' : 'Processing'}
+                  label={fileStatuses[index] === 'completed' ? 'Completed' : 'Processing'}
                   size="small"
-                  color={processingComplete ? 'success' : 'primary'}
+                  color={fileStatuses[index] === 'completed' ? 'success' : 'primary'}
                   variant="outlined"
                 />
               </Box>
@@ -204,7 +261,7 @@ const ProcessingStatusPage = () => {
           <Card elevation={1} sx={{ mb: 4, borderRadius: 2 }}>
             <CardContent>
               <Alert severity="success" sx={{ mb: 2 }}>
-                Processing completed successfully! Your wallet passes are ready.
+                Data extraction completed! Ready for your review...
               </Alert>
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                 <Button
@@ -215,42 +272,51 @@ const ProcessingStatusPage = () => {
                 </Button>
                 <Button
                   variant="contained"
-                  onClick={() => navigate('/wallet-preview', { 
+                  onClick={() => navigate('/receipt-review', { 
                     state: { 
                       files: files,
-                      processedData: {
-                        merchant: 'Example Store',
-                        total: 25.99,
-                        date: new Date().toLocaleDateString(),
-                        items: ['Item 1', 'Item 2', 'Item 3']
+                      extractedData: {
+                        merchant: 'Starbucks Coffee',
+                        date: '2024-01-15',
+                        time: '14:30',
+                        total: '15.47',
+                        category: 'Coffee & Dining',
+                        paymentMethod: 'Credit Card',
+                        location: '123 Main Street, Downtown',
+                        items: [
+                          { name: 'Grande Latte', quantity: 1, price: '5.25' },
+                          { name: 'Blueberry Scone', quantity: 1, price: '3.95' },
+                          { name: 'Americano', quantity: 2, price: '3.14' }
+                        ],
+                        tax: '1.23',
+                        tip: '1.90'
                       }
                     }
                   })}
                 >
-                  View Wallet Pass
+                  Review Data Now
                 </Button>
               </Box>
             </CardContent>
           </Card>
         )}
 
-        {/* Real-time Updates */}
+        {/* Real-time Updates - Only show during processing */}
         {!processingComplete && (
           <Card elevation={1} sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Real-time Updates
+                Processing in Progress
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                We'll notify you when processing is complete. You can safely navigate away from this page.
+                Your receipts are being processed. This usually takes 30-60 seconds.
               </Typography>
             </CardContent>
           </Card>
         )}
       </Container>
 
-      {/* Bottom Navigation for Mobile */}
-      {isMobile && <BottomNavigation />}
+      {/* Remove Bottom Navigation during processing flow */}
     </Box>
   );
 };

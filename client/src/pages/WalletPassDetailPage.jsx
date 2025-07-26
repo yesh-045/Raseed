@@ -12,6 +12,8 @@ import {
   IconButton,
   Stack,
   Divider,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -21,6 +23,7 @@ import {
   Share as ShareIcon,
   Receipt as ReceiptIcon,
   Store as StoreIcon,
+  TrendingUp as InsightsIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { PageContainer, BottomNavigation } from '../components';
@@ -29,10 +32,34 @@ const WalletPassDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [isAddingToWallet, setIsAddingToWallet] = useState(false);
 
-  // Get receipt data from navigation state or use mock data
-  const receiptData = location.state?.receipt || {
+  // Get confirmed data from receipt review or fallback to mock data
+  const confirmedData = location.state?.confirmedData;
+  const readyForWallet = location.state?.readyForWallet;
+
+  // Use confirmed data if available, otherwise use mock data
+  const receiptData = confirmedData ? {
+    id: 1,
+    merchant: confirmedData.merchant,
+    amount: `$${confirmedData.total}`,
+    date: confirmedData.date,
+    time: confirmedData.time,
+    location: confirmedData.location,
+    items: confirmedData.items.map(item => ({
+      name: `${item.name} (x${item.quantity})`,
+      price: `$${item.price}`
+    })).concat([
+      { name: 'Tax', price: `$${confirmedData.tax}` },
+      { name: 'Tip', price: `$${confirmedData.tip}` }
+    ]),
+    paymentMethod: confirmedData.paymentMethod,
+    categoryColor: getCategoryColor(confirmedData.category),
+  } : {
+    // Fallback mock data
     id: 1,
     merchant: 'Starbucks',
     amount: '$15.47',
@@ -49,12 +76,80 @@ const WalletPassDetailPage = () => {
     categoryColor: '#00704A',
   };
 
-  const handleAddToWallet = () => {
-    setSnackbar({
-      open: true,
-      message: 'Receipt added to Google Wallet successfully!',
-      severity: 'success',
-    });
+  // Helper function to get category colors
+  function getCategoryColor(category) {
+    const colors = {
+      'Coffee & Dining': '#00704A',
+      'Groceries': '#0F9D58', 
+      'Transportation': '#4285F4',
+      'Retail': '#DB4437',
+      'Entertainment': '#9C27B0',
+      'Health & Fitness': '#FF9800',
+      'Gas & Fuel': '#607D8B',
+      'Other': '#757575'
+    };
+    return colors[category] || '#1A73E8';
+  }
+
+  const handleAddToWallet = async () => {
+    try {
+      setIsAddingToWallet(true);
+      
+      // Show loading state
+      setSnackbar({
+        open: true,
+        message: 'Adding to Google Wallet...',
+        severity: 'info',
+      });
+
+      // 1. Add to Google Wallet (backend call)
+      // TODO: Replace with actual backend API call
+      // await addToGoogleWallet(receiptData);
+      
+      // Simulate backend call for now
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // 2. Save to receipts for reference
+      // TODO: Replace with actual backend API call
+      // await saveReceiptToDatabase(receiptData);
+      
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Added to Google Wallet & saved to receipts!',
+        severity: 'success',
+      });
+
+      // 3. Navigate to receipts after a short delay
+      setTimeout(() => {
+        navigate('/receipts', {
+          state: {
+            newReceipt: receiptData,
+            fromWallet: true
+          }
+        });
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error adding to wallet:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to add to wallet. Please try again.',
+        severity: 'error',
+      });
+    } finally {
+      setIsAddingToWallet(false);
+    }
+  };
+
+  const handleSaveToReceipts = () => {
+    // Navigate to receipts overview
+    navigate('/receipts');
+  };
+
+  const handleViewInsights = () => {
+    // Navigate to spending insights
+    navigate('/insights');
   };
 
   const handleShare = () => {
@@ -69,7 +164,7 @@ const WalletPassDetailPage = () => {
     <Box sx={{ 
       minHeight: '100vh', 
       bgcolor: 'background.default',
-      pb: 10 
+      pb: 14 // More space for fixed bottom button
     }}>
       {/* Header */}
       <Box
@@ -92,11 +187,14 @@ const WalletPassDetailPage = () => {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton onClick={() => navigate(-1)} edge="start">
+            <IconButton 
+              onClick={() => navigate(-1)} 
+              edge="start"
+            >
               <ArrowBackIcon />
             </IconButton>
             <Typography variant="h6" sx={{ fontWeight: 500 }}>
-              Receipt Details
+              {confirmedData ? 'Wallet Pass Preview' : 'Receipt Details'}
             </Typography>
           </Box>
           
@@ -106,8 +204,10 @@ const WalletPassDetailPage = () => {
         </Box>
       </Box>
 
-      <PageContainer>
-        <Box sx={{ pt: 3 }}>
+      <PageContainer maxWidth="sm" disablePadding={false}>
+        
+        
+        <Box sx={{ pt: confirmedData ? 1 : 3 }}>
           {/* Receipt Pass Card */}
           <Card
             elevation={0}
@@ -122,79 +222,113 @@ const WalletPassDetailPage = () => {
               overflow: 'hidden',
             }}
           >
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+            <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, mb: 2 }}>
                 <Avatar
                   sx={{
-                    width: 48,
-                    height: 48,
+                    width: { xs: 36, sm: 40 },
+                    height: { xs: 36, sm: 40 },
                     bgcolor: 'rgba(255, 255, 255, 0.2)',
                     color: 'white',
                   }}
                 >
-                  <StoreIcon />
+                  <StoreIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
                 </Avatar>
-                <Box>
-                  <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="h6" 
+                    sx={{ 
+                      fontWeight: 600, 
+                      mb: 0.5,
+                      fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                      lineHeight: 1.2
+                    }}
+                  >
                     {receiptData.merchant}
                   </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    {receiptData.date} • {receiptData.time}
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      opacity: 0.9,
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                    }}
+                  >
+                    {receiptData.date}
+                  </Typography>
+                </Box>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 600,
+                      fontSize: { xs: '1.5rem', sm: '2rem' },
+                      lineHeight: 1
+                    }}
+                  >
+                    {receiptData.amount}
                   </Typography>
                 </Box>
               </Box>
 
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <Box>
-                  <Typography variant="body2" sx={{ opacity: 0.9, mb: 0.5 }}>
-                    Total Amount
-                  </Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 400 }}>
-                    {receiptData.amount}
-                  </Typography>
-                </Box>
-                <Box sx={{ textAlign: 'right' }}>
-                  <QrCodeIcon sx={{ fontSize: 48, opacity: 0.3 }} />
-                </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <QrCodeIcon sx={{ fontSize: { xs: 28, sm: 32 }, opacity: 0.4 }} />
               </Box>
             </CardContent>
           </Card>
 
-          {/* Actions */}
-          <Box sx={{ mb: 4 }}>
-            <Button
-              variant="contained"
-              fullWidth
-              startIcon={<WalletIcon />}
-              onClick={handleAddToWallet}
-              sx={{
-                py: 2,
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontWeight: 500,
-                mb: 2,
-              }}
-            >
-              Add to Google Wallet
-            </Button>
-            
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<ShareIcon />}
-              onClick={handleShare}
-              sx={{
-                py: 2,
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontWeight: 500,
-              }}
-            >
-              Share Receipt
-            </Button>
+          {/* Secondary Actions - Collapsed */}
+          <Box sx={{ mb: 3 }}>
+            <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
+              <Button
+                size="small"
+                startIcon={<InsightsIcon />}
+                onClick={handleViewInsights}
+                sx={{
+                  borderRadius: '20px',
+                  textTransform: 'none',
+                  px: 2,
+                  py: 0.5,
+                  fontSize: '0.75rem',
+                }}
+              >
+                View insights
+              </Button>
+              
+              {confirmedData && readyForWallet ? (
+                <Button
+                  size="small"
+                  startIcon={<ReceiptIcon />}
+                  onClick={handleSaveToReceipts}
+                  sx={{
+                    borderRadius: '20px',
+                    textTransform: 'none',
+                    px: 2,
+                    py: 0.5,
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  Save to receipts
+                </Button>
+              ) : (
+                <Button
+                  size="small"
+                  startIcon={<ShareIcon />}
+                  onClick={handleShare}
+                  sx={{
+                    borderRadius: '20px',
+                    textTransform: 'none',
+                    px: 2,
+                    py: 0.5,
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  Share
+                </Button>
+              )}
+            </Stack>
           </Box>
 
-          {/* Receipt Details */}
+          {/* Receipt Details - Simplified */}
           <Card
             elevation={0}
             sx={{
@@ -205,26 +339,17 @@ const WalletPassDetailPage = () => {
             }}
           >
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 500, mb: 2 }}>
-                Receipt Information
+              <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 2 }}>
+                Details
               </Typography>
               
-              <Stack spacing={2}>
+              <Stack spacing={1.5}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2" color="text.secondary">
-                    Merchant
+                    Time
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {receiptData.merchant}
-                  </Typography>
-                </Box>
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Date & Time
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {receiptData.date} {receiptData.time}
+                    {receiptData.time}
                   </Typography>
                 </Box>
                 
@@ -232,14 +357,14 @@ const WalletPassDetailPage = () => {
                   <Typography variant="body2" color="text.secondary">
                     Location
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right', maxWidth: '60%' }}>
                     {receiptData.location}
                   </Typography>
                 </Box>
                 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2" color="text.secondary">
-                    Payment Method
+                    Payment
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     {receiptData.paymentMethod}
@@ -249,34 +374,53 @@ const WalletPassDetailPage = () => {
             </CardContent>
           </Card>
 
-          {/* Items */}
+          {/* Items - Simplified */}
           <Card
             elevation={0}
             sx={{
               border: '1px solid',
               borderColor: 'divider',
               borderRadius: '16px',
+              mb: 3,
             }}
           >
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 500, mb: 2 }}>
-                Items Purchased
+              <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 2 }}>
+                Items ({receiptData.items.length})
               </Typography>
               
-              <Stack spacing={2}>
+              <Stack spacing={1}>
                 {receiptData.items.map((item, index) => (
-                  <Box key={index}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {item.name}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {item.price}
-                      </Typography>
-                    </Box>
-                    {index < receiptData.items.length - 1 && (
-                      <Divider sx={{ mt: 2 }} />
-                    )}
+                  <Box 
+                    key={index}
+                    sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'flex-start',
+                      py: 0.5
+                    }}
+                  >
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontWeight: 400,
+                        flex: 1,
+                        minWidth: 0,
+                        pr: 2,
+                        lineHeight: 1.4
+                      }}
+                    >
+                      {item.name}
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontWeight: 500,
+                        flexShrink: 0
+                      }}
+                    >
+                      {item.price}
+                    </Typography>
                   </Box>
                 ))}
               </Stack>
@@ -295,6 +439,49 @@ const WalletPassDetailPage = () => {
           </Card>
         </Box>
       </PageContainer>
+
+      {/* Fixed Primary Action Button */}
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          p: { xs: 2, sm: 3 },
+          bgcolor: 'background.paper',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          zIndex: 1100,
+        }}
+      >
+        <Box sx={{ maxWidth: 'sm', mx: 'auto' }}>
+          <Button
+            variant="contained"
+            fullWidth
+            size="large"
+            startIcon={<WalletIcon />}
+            onClick={handleAddToWallet}
+            disabled={isAddingToWallet}
+            sx={{
+              py: { xs: 1.5, sm: 2 },
+              borderRadius: '12px',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: { xs: '0.95rem', sm: '1rem' },
+              boxShadow: '0 2px 12px rgba(26, 115, 232, 0.3)',
+              '&:hover': {
+                boxShadow: '0 4px 16px rgba(26, 115, 232, 0.4)',
+              },
+              '&:disabled': {
+                bgcolor: 'action.disabledBackground',
+                color: 'action.disabled',
+              },
+            }}
+          >
+            {isAddingToWallet ? 'Adding to Wallet...' : 'Add to Google Wallet'}
+          </Button>
+        </Box>
+      </Box>
 
       <Snackbar
         open={snackbar.open}

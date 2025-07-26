@@ -28,7 +28,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, PageContainer, BottomNavigation } from '../components';
 
-const SpendingInsightsPageGoogle = () => {
+const InsightsPage = () => {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState('month');
 
@@ -286,4 +286,4 @@ const SpendingInsightsPageGoogle = () => {
   );
 };
 
-export default SpendingInsightsPageGoogle;
+export default InsightsPage;
