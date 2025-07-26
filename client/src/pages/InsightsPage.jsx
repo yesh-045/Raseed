@@ -5,6 +5,7 @@ import {
   CardContent,
   Typography,
   Grid,
+  Chip,
   LinearProgress,
   List,
   ListItem,
@@ -308,34 +309,32 @@ const InsightsPage = () => {
         />
 
         <Box sx={{ py: 3 }}>
-          {/* Time Range Toggle */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          {/* Time Range Selector */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
             <ToggleButtonGroup
               value={timeRange}
               exclusive
               onChange={handleTimeRangeChange}
               size="small"
-              sx={{ bgcolor: 'background.paper', borderRadius: 2 }}
+              sx={{ bgcolor: 'background.paper', borderRadius: 3 }}
             >
-              <ToggleButton value="week" sx={{ px: 3 }}>
+              <ToggleButton value="week" sx={{ px: 3, borderRadius: 3 }}>
                 This Week
               </ToggleButton>
-              <ToggleButton value="month" sx={{ px: 3 }}>
+              <ToggleButton value="month" sx={{ px: 3, borderRadius: 3 }}>
                 This Month
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
 
-          {/* Key Metrics Hero Card */}
+          {/* Total Spending Hero Card */}
           <Card 
-            elevation={0}
+            elevation={2}
             sx={{ 
               mb: 3,
-              background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+              background: 'linear-gradient(135deg, #1A73E8 0%, #1557B0 100%)',
               color: 'white',
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider'
+              borderRadius: 3,
             }}
           >
             <CardContent sx={{ p: 3 }}>
@@ -360,11 +359,11 @@ const InsightsPage = () => {
             </CardContent>
           </Card>
 
-          {/* Category Breakdown */}
-          <Card elevation={0} sx={{ mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          {/* Categories Breakdown */}
+          <Card elevation={1} sx={{ mb: 3, borderRadius: 3 }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Categories
+              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                Spending by Category
               </Typography>
               
               {currentData.categories.length > 0 ? (
@@ -429,10 +428,56 @@ const InsightsPage = () => {
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          {/* Top Merchants */}
+          <Card elevation={1} sx={{ borderRadius: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                Top Merchants
+              </Typography>
+              
+              <List>
+                {currentData.topMerchants.map((merchant, index) => (
+                  <ListItem key={index} sx={{ px: 0, py: 1 }}>
+                    <ListItemIcon>
+                      <Chip
+                        label={index + 1}
+                        size="small"
+                        sx={{
+                          bgcolor: index === 0 ? '#1A73E8' : 'grey.300',
+                          color: index === 0 ? 'white' : 'text.primary',
+                          fontWeight: 600,
+                          minWidth: 28,
+                        }}
+                      />
+                    </ListItemIcon>
+                    
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                            {merchant.name}
+                          </Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            ${merchant.amount.toFixed(2)}
+                          </Typography>
+                        </Box>
+                      }
+                      secondary={
+                        <Typography variant="caption" color="text.secondary">
+                          {merchant.visits} {merchant.visits === 1 ? 'visit' : 'visits'}
+                        </Typography>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats Grid */}
+          <Grid container spacing={2} sx={{ mt: 2 }}>
             <Grid item xs={6}>
-              <Card elevation={0} sx={{ borderRadius: 2, textAlign: 'center', border: '1px solid', borderColor: 'divider' }}>
+              <Card elevation={1} sx={{ borderRadius: 2, textAlign: 'center' }}>
                 <CardContent sx={{ py: 2 }}>
                   <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>
                     {currentData.categories.length}
@@ -445,7 +490,7 @@ const InsightsPage = () => {
             </Grid>
             
             <Grid item xs={6}>
-              <Card elevation={0} sx={{ borderRadius: 2, textAlign: 'center', border: '1px solid', borderColor: 'divider' }}>
+              <Card elevation={1} sx={{ borderRadius: 2, textAlign: 'center' }}>
                 <CardContent sx={{ py: 2 }}>
                   <Typography variant="h5" sx={{ fontWeight: 600, color: 'secondary.main' }}>
                     ₹{currentData.total > 0 ? (currentData.total / (timeRange === 'week' ? 7 : 30)).toFixed(0) : '0'}
@@ -457,23 +502,6 @@ const InsightsPage = () => {
               </Card>
             </Grid>
           </Grid>
-
-          {/* Advanced Insights Button */}
-          <Button
-            variant="outlined"
-            fullWidth
-            startIcon={<AnalyticsIcon />}
-            onClick={handleAdvancedInsights}
-            sx={{
-              py: 1.5,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontSize: '1rem',
-              fontWeight: 500
-            }}
-          >
-            Advanced Insights
-          </Button>
         </Box>
       </PageContainer>
 

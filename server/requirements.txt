@@ -3,9 +3,3 @@ fastapi
 uvicorn
 pydantic
 google-adk
-firebase_admin
-google-cloud-firestore
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-google-api-python-client

@@ -1,10 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton } from '@mui/material';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
-import app from '../firebase';
-import apiService from '../services/api';
+import React from 'react';
 import {
   Box,
   Card,
@@ -24,24 +18,13 @@ import { PageContainer, BottomNavigation } from '../components';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profile, setProfile] = useState({
-    uid: '',
-    name: '',
-    email: '',
-    phone: '',
-    preferred_currency: '',
-    budget_monthly: 0,
-  });
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const [profileError, setProfileError] = useState('');
 
-  // Stats from backend receipts
-  const [stats, setStats] = useState({
-    totalSpend: '',
-    totalReceipts: 0,
-    thisMonth: 0,
-  });
+  // Mock data - Actual app stats
+  const stats = {
+    totalSpend: '$1,234.56',
+    totalReceipts: 12,
+    thisMonth: 4,
+  };
 
   const [recentActivity, setRecentActivity] = useState([]);
 
@@ -212,7 +195,7 @@ const DashboardPage = () => {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
             px: 2,
             py: 2,
           }}
@@ -220,9 +203,6 @@ const DashboardPage = () => {
           <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>
             Raseed
           </Typography>
-          <IconButton onClick={handleProfileClick} sx={{ ml: 2 }}>
-            <AccountCircleIcon fontSize="large" />
-          </IconButton>
         </Box>
       </Box>
 
@@ -335,10 +315,6 @@ const DashboardPage = () => {
                       elevation: 4,
                     },
                   }}
-                  onClick={() => {
-                    const backendId = String(item.receipt_id || item.id);
-                    navigate(`/receipt/${backendId}`);
-                  }}
                 >
                   <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -352,18 +328,20 @@ const DashboardPage = () => {
                           fontWeight: 600,
                         }}
                       >
-                        {item.store ? item.store.charAt(0) : '?'}
+                        {item.merchant.charAt(0)}
                       </Avatar>
+                      
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                          {item.store || 'Unknown Store'}
+                          {item.merchant}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ''}
+                          {item.date}
                         </Typography>
                       </Box>
+                      
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {item.total_amount ? `₹${item.total_amount}` : ''}
+                        {item.amount}
                       </Typography>
                     </Box>
                   </CardContent>
@@ -373,55 +351,6 @@ const DashboardPage = () => {
           </Box>
         </Box>
       </PageContainer>
-
-      {/* Profile Dialog */}
-      <Dialog open={profileOpen} onClose={() => setProfileOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>User Profile</DialogTitle>
-        <DialogContent>
-          {loadingProfile ? (
-            <Typography>Loading...</Typography>
-          ) : (
-            <Stack spacing={2}>
-              <TextField
-                label="Full Name"
-                value={profile.name}
-                onChange={e => setProfile({ ...profile, name: e.target.value })}
-                fullWidth
-              />
-              <TextField
-                label="Email"
-                value={profile.email}
-                onChange={e => setProfile({ ...profile, email: e.target.value })}
-                fullWidth
-              />
-              <TextField
-                label="Phone"
-                value={profile.phone}
-                onChange={e => setProfile({ ...profile, phone: e.target.value })}
-                fullWidth
-              />
-              <TextField
-                label="Preferred Currency"
-                value={profile.preferred_currency}
-                onChange={e => setProfile({ ...profile, preferred_currency: e.target.value })}
-                fullWidth
-              />
-              <TextField
-                label="Monthly Budget"
-                type="number"
-                value={profile.budget_monthly}
-                onChange={e => setProfile({ ...profile, budget_monthly: e.target.value })}
-                fullWidth
-              />
-              {profileError && <Typography color="error">{profileError}</Typography>}
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setProfileOpen(false)} color="secondary">Cancel</Button>
-          <Button onClick={handleProfileSave} color="primary" disabled={loadingProfile}>Save</Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Floating Action Button */}
       <Fab

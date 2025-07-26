@@ -1,7 +1,4 @@
 import React, { useState } from 'react';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
-import app from '../firebase';
 import {
   Box,
   Card,
@@ -119,9 +116,9 @@ const ReceiptsPage = () => {
   }, [receipts]);
 
   const filteredReceipts = receipts.filter(receipt => {
-  const matchesSearch = receipt.merchant && receipt.merchant.toLowerCase().includes(searchQuery.toLowerCase());
-  const matchesTab = tabValue === 0 || receipt.category === categories[tabValue];
-  return matchesSearch && matchesTab;
+    const matchesSearch = receipt.merchant.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTab = tabValue === 0 || receipt.category === categories[tabValue];
+    return matchesSearch && matchesTab;
   });
 
   // Sort filteredReceipts based on sortCriteria
@@ -149,12 +146,7 @@ const ReceiptsPage = () => {
     if (selectionMode) {
       handleReceiptSelect(receiptId);
     } else {
-      // Find the actual backend id (receipt_id or id) from filteredReceipts
-      const receipt = filteredReceipts.find(r => r.id === receiptId);
-      const backendId = receipt && String(receipt.receipt_id || receipt.id);
-      if (backendId) {
-        navigate(`/receipt/${backendId}`);
-      }
+      navigate(`/receipts/${receiptId}`);
     }
   };
 
@@ -447,11 +439,7 @@ const ReceiptsPage = () => {
       </Box>
 
       <PageContainer>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-            <Typography variant="body1" color="text.secondary">Loading receipts...</Typography>
-          </Box>
-        ) : filteredReceipts.length === 0 ? (
+        {filteredReceipts.length === 0 ? (
           // Empty State
           <Box sx={{ 
             display: 'flex', 
@@ -684,7 +672,7 @@ const ReceiptsPage = () => {
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={8000}
+        autoHideDuration={4000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
