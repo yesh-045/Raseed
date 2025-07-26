@@ -13,13 +13,14 @@ class WalletTool:
     """Tool for creating digital passes in Google Wallet.
     """
 
-    def _init_(self, credentials_path: str = 'google_credentials.json'):
+    def __init__(self, credentials_path: str = 'google_cloud_credentials.json'):
         """Initialize the wallet tool with Google credentials.
         
         Args:
             credentials_path: Path to Google service account JSON credentials file.
         """
         self.key_file_path = credentials_path
+        self.issuer_id = os.getenv('GOOGLE_WALLET_ISSUER_ID', '3388000000022973891')
         self.credentials = None
         self.client = None
         self._authenticate()
@@ -40,7 +41,7 @@ class WalletTool:
         return self.credentials is not None and self.client is not None
 
     def create_pass(self, 
-                   issuer_id: str,title: str,header: str,description: str,
+                   title: str,header: str,description: str,
                    barcode_value: str,background_color: str = "#4285f4",
                    hero_image_url: Optional[str] = None,
                    logo_image_url: Optional[str] = None,
@@ -65,9 +66,8 @@ class WalletTool:
             object_suffix = f"object_{uuid.uuid4().hex[:8]}"
             
             # Create class and object
-            class_id = self._create_class(issuer_id, class_suffix)
-            save_link = self._create_object(
-                issuer_id, 
+            class_id = self._create_class(self.issuer_id, class_suffix)
+            save_link = self._create_object( 
                 class_suffix, 
                 object_suffix,
                 title,
@@ -84,7 +84,7 @@ class WalletTool:
                 'success': True,
                 'save_link': save_link,
                 'class_id': class_id,
-                'object_id': f'{issuer_id}.{object_suffix}'
+                'object_id': f'{self.issuer_id}.{object_suffix}'
             }
             
         except Exception as e:
@@ -93,7 +93,7 @@ class WalletTool:
                 'error': str(e)
             }
 
-    def _create_class(self, issuer_id: str, class_suffix: str) -> str:
+    def _create_class(self,class_suffix: str) -> str:
         """Create a wallet class (internal method).
 
         Args:
@@ -103,7 +103,7 @@ class WalletTool:
         Returns:
             The pass class ID
         """
-        class_id = f'{issuer_id}.{class_suffix}'
+        class_id = f'{self.issuer_id}.{class_suffix}'
         
         # Check if class exists
         try:
@@ -118,8 +118,7 @@ class WalletTool:
         self.client.genericclass().insert(body=new_class).execute()
         return class_id
 
-    def _create_object(self, 
-                      issuer_id: str, 
+    def _create_object(self,  
                       class_suffix: str,
                       object_suffix: str, 
                       title: str, 
@@ -131,8 +130,8 @@ class WalletTool:
                       logo_image_url: Optional[str] = None,
                       app_link_url: Optional[str] = None) -> str:
         """Create a wallet object and return save link (internal method)."""
-        object_id = f'{issuer_id}.{object_suffix}'
-        class_id = f'{issuer_id}.{class_suffix}'
+        object_id = f'{self.issuer_id}.{object_suffix}'
+        class_id = f'{self.issuer_id}.{class_suffix}'
         
         # Set default images if not provided
         hero_image_url = hero_image_url or 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
@@ -203,58 +202,3 @@ class WalletTool:
         signer = crypt.RSASigner.from_service_account_file(self.key_file_path)
         token = jwt.encode(signer, claims).decode('utf-8')
         return f'https://pay.google.com/gp/v/save/{token}'
-
-import os
-from wallet_tool import WalletTool
-
-def main():
-    """Test the WalletTool functionality by creating a sample pass."""
-    
-    # Set path to your Google credentials file - update this path as needed
-    credentials_path = os.path.join(os.path.dirname(_file_), 'google_credentials.json')
-    
-    # Create the wallet tool instance
-    print("Initializing WalletTool...")
-    wallet_tool = WalletTool(credentials_path=credentials_path)
-    
-    # Check if the tool is ready
-    if not wallet_tool.is_ready():
-        print("ERROR: WalletTool failed to initialize properly.")
-        return
-    
-    print("WalletTool initialized successfully!")
-    
-    # Test parameters - replace with your actual issuer ID
-    test_params = {
-        "issuer_id": "3388000000022973801",  # Replace with your actual Google Wallet issuer ID
-        "title": "Test Receipt",
-        "header": "Raseed Digital Receipt",
-        "description": "Thank you for your purchase! This is a digital receipt created for testing purposes.",
-        "barcode_value": "RECEIPT-" + "12345678",
-        "background_color": "#4285f4",  # Google Blue
-        # Optional parameters
-        # "hero_image_url": "https://example.com/hero.jpg", 
-        # "logo_image_url": "https://example.com/logo.png",
-        # "app_link_url": "https://example.com/app"
-    }
-    
-    # Create the pass
-    print(f"Creating pass with title: {test_params['title']}...")
-    result = wallet_tool.create_pass(**test_params)
-    
-    # Handle the result
-    if result['success']:
-        print("✅ Pass created successfully!")
-        print(f"Save link: {result['save_link']}")
-        print(f"Class ID: {result['class_id']}")
-        print(f"Object ID: {result['object_id']}")
-        
-        # You can open this link in a browser to save the pass
-        print("\nOpen this link in a browser to save the pass to Google Wallet:")
-        print(result['save_link'])
-    else:
-        print("❌ Failed to create pass:")
-        print(f"Error: {result['error']}")
-
-# if _name_ == "_main_":
-#     main()

@@ -5,3 +5,6 @@ __pycache__/
 .idea/
 .vscode/
 env/
+
+venv/
+server/agents/ReceiptOrchestrator/subagents/google_wallet/google_cloud_credentials.json
