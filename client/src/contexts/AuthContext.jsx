@@ -14,57 +14,42 @@ export const AuthProvider = ({ children }) => {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
+    // Add required scopes for Google services
+    provider.addScope('email');
+    provider.addScope('profile');
+    
     try {
       const result = await signInWithPopup(auth, provider);
-      localStorage.setItem('userInfo', JSON.stringify({
-        uid: result.user.uid,
-        email: result.user.email,
-        displayName: result.user.displayName,
-        photoURL: result.user.photoURL
-      }));
+      const user = result.user;
+      
+      // Store user info in localStorage for persistence
+      const userInfo = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        accessToken: result._tokenResponse?.oauthAccessToken
+      };
+      
+      localStorage.setItem('userInfo', JSON.stringify(userInfo));
       return result;
     } catch (error) {
       console.error('Error signing in with Google:', error);
-      throw error;
-    }
-  };
-
-  // Simple mock login for development
-  const login = async () => {
-    try {
-      // For development, create a mock user
-      const mockUser = {
-        uid: 'mock-user-123',
-        email: 'demo@raseed.ai',
-        displayName: 'Demo User',
-        photoURL: 'https://via.placeholder.com/150'
-      };
-      
-      localStorage.setItem('userInfo', JSON.stringify(mockUser));
-      localStorage.setItem('mockAuth', 'true');
-      setCurrentUser(mockUser);
-      return mockUser;
-    } catch (error) {
-      console.error('Error with mock login:', error);
-      throw error;
+      // Handle specific error codes
+      if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error('Sign-in cancelled. Please try again.');
+      } else if (error.code === 'auth/popup-blocked') {
+        throw new Error('Popup blocked. Please allow popups and try again.');
+      }
+      throw new Error('Failed to sign in. Please try again.');
     }
   };
 
   const logout = async () => {
     try {
-      const mockAuth = localStorage.getItem('mockAuth');
-      
-      if (mockAuth === 'true') {
-        // Handle mock logout
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('mockAuth');
-        setCurrentUser(null);
-        return;
-      }
-      
-      // Handle Firebase logout
       await signOut(auth);
       localStorage.removeItem('userInfo');
+      setCurrentUser(null);
     } catch (error) {
       console.error('Error signing out:', error);
       throw error;
@@ -72,27 +57,23 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Check for stubbed authentication first
-    const mockAuth = localStorage.getItem('mockAuth');
-    const userInfo = localStorage.getItem('userInfo');
-    
-    if (mockAuth === 'true' && userInfo) {
-      try {
-        const mockUser = JSON.parse(userInfo);
-        setCurrentUser(mockUser);
-        setLoading(false);
-        return;
-      } catch (error) {
-        console.error('Error parsing mock user:', error);
-      }
-    }
-    
-    // Fall back to Firebase auth
+    // Listen for Firebase auth state changes
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!mockAuth) {  // Only use Firebase auth if not in mock mode
-        setCurrentUser(user);
-      }
+      setCurrentUser(user);
       setLoading(false);
+      
+      // Update localStorage when user state changes
+      if (user) {
+        const userInfo = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL
+        };
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+      } else {
+        localStorage.removeItem('userInfo');
+      }
     });
 
     return unsubscribe;
@@ -101,7 +82,6 @@ export const AuthProvider = ({ children }) => {
   const value = {
     currentUser,
     signInWithGoogle,
-    login,
     logout,
     loading
   };

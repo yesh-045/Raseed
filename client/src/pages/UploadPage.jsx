@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 // Components
 import { PageContainer, UploadDropZone, FileUploadItem } from '../components';
 
-const UploadReceiptPageGoogle = () => {
+const UploadPage = () => {
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [processing, setProcessing] = useState(false);
@@ -65,20 +65,9 @@ const UploadReceiptPageGoogle = () => {
     }
 
     setProcessing(false);
-    setSnackbar({
-      open: true,
-      message: `${filesToProcess.length} receipt(s) processed by AI!`,
-      severity: 'success'
-    });
+    
 
-    // Auto-navigate to ProcessingStatusPage
-    setTimeout(() => {
-      navigate('/processing', { 
-        state: { 
-          processedFiles: files.filter(f => f.status === 'completed').length + filesToProcess.length 
-        } 
-      });
-    }, 1500);
+    // User can manually navigate when ready
   };
 
   const handleCameraCapture = () => {
@@ -95,7 +84,19 @@ const UploadReceiptPageGoogle = () => {
   };
 
   const removeFile = (fileId) => {
-    setFiles(prev => prev.filter(f => f.id !== fileId));
+    // Only allow removal if not processing
+    if (!processing) {
+      setFiles(prev => prev.filter(f => f.id !== fileId));
+    }
+  };
+
+  const handleReviewResults = () => {
+    const completedFiles = files.filter(f => f.status === 'completed').length;
+    navigate('/processing', { 
+      state: { 
+        processedFiles: completedFiles 
+      } 
+    });
   };
 
   return (
@@ -154,14 +155,14 @@ const UploadReceiptPageGoogle = () => {
                 width: 120,
                 height: 120,
                 borderRadius: '50%',
-                bgcolor: 'grey.100',
+                bgcolor: 'action.hover',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 mb: 3,
               }}
             >
-              <AddIcon sx={{ fontSize: 48, color: 'grey.400' }} />
+              <AddIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
             </Box>
             
             <Typography variant="h6" sx={{ mb: 1, fontWeight: 500 }}>
@@ -173,11 +174,11 @@ const UploadReceiptPageGoogle = () => {
               color="text.secondary" 
               sx={{ mb: 4, maxWidth: 280 }}
             >
-              Upload receipts to automatically extract data and add to your wallet
+              Upload receipts to extract and save details securely
             </Typography>
 
             <UploadDropZone
-              onFilesAdded={handleFilesAdded}
+              onFilesSelected={handleFilesAdded}
               supportedFormats={supportedFormats}
               disabled={processing}
             />
@@ -187,10 +188,10 @@ const UploadReceiptPageGoogle = () => {
             {/* Processing Header */}
             <Box sx={{ mb: 3, px: 1 }}>
               <Typography variant="h6" sx={{ fontWeight: 500, mb: 1 }}>
-                {processing ? 'Processing...' : 'Ready to process'}
+                {processing ? 'AI extracting data...' : 'Processing complete'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {files.length} receipt{files.length !== 1 ? 's' : ''} selected
+                {files.length} receipt{files.length !== 1 ? 's' : ''} {processing ? 'being processed' : 'ready for review'}
               </Typography>
             </Box>
 
@@ -202,9 +203,30 @@ const UploadReceiptPageGoogle = () => {
                   file={fileItem}
                   onRemove={removeFile}
                   showProgress={true}
+                  disabled={processing}
                 />
               ))}
             </Stack>
+
+            {/* Review Button - Show when processing is complete */}
+            {!processing && files.some(f => f.status === 'completed') && (
+              <Box sx={{ mt: 3, textAlign: 'center' }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={handleReviewResults}
+                  sx={{
+                    py: 1.5,
+                    px: 4,
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 500,
+                  }}
+                >
+                  Review & confirm data
+                </Button>
+              </Box>
+            )}
           </Box>
         )}
       </PageContainer>
@@ -245,4 +267,4 @@ const UploadReceiptPageGoogle = () => {
   );
 };
 
-export default UploadReceiptPageGoogle;
+export default UploadPage;

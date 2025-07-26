@@ -8,17 +8,16 @@ import PrivateRoute from './components/PrivateRoute';
 // Pages
 import WelcomePage from './pages/WelcomePage';
 import ProcessingStatusPage from './pages/ProcessingStatusPage';
-import WalletPassPreviewPage from './pages/WalletPassPreviewPage';
+import ReceiptReviewPage from './pages/ReceiptReviewPage';
 import WalletPassDetailPage from './pages/WalletPassDetailPage';
+import WalletPassPreviewPage from './pages/WalletPassPreviewPage';
+import DashboardPage from './pages/DashboardPage';
+import UploadPage from './pages/UploadPage';
+import ReceiptsPage from './pages/ReceiptsPage';
+import WalletPage from './pages/WalletPage';
+import InsightsPage from './pages/InsightsPage';
+import AgentPage from './pages/AgentPage';
 
-// Google Material 3 Pages
-import DashboardPageGoogle from './pages/DashboardPageGoogle';
-import UploadReceiptPageGoogle from './pages/UploadReceiptPageGoogle';
-import ReceiptsOverviewPageGoogle from './pages/ReceiptsOverviewPageGoogle';
-import SpendingInsightsPageGoogle from './pages/SpendingInsightsPageGoogle';
-import AgentQueryPageGoogle from './pages/AgentQueryPageGoogle';
-
-// Material Design 3 Theme - Google Material baseline
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -181,7 +180,7 @@ function App() {
               path="/dashboard"
               element={
                 <PrivateRoute>
-                  <DashboardPageGoogle />
+                  <DashboardPage />
                 </PrivateRoute>
               }
             />
@@ -189,7 +188,15 @@ function App() {
               path="/receipts"
               element={
                 <PrivateRoute>
-                  <ReceiptsOverviewPageGoogle />
+                  <ReceiptsPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/wallet"
+              element={
+                <PrivateRoute>
+                  <WalletPage />
                 </PrivateRoute>
               }
             />
@@ -197,7 +204,7 @@ function App() {
               path="/upload"
               element={
                 <PrivateRoute>
-                  <UploadReceiptPageGoogle />
+                  <UploadPage />
                 </PrivateRoute>
               }
             />
@@ -210,10 +217,10 @@ function App() {
               }
             />
             <Route
-              path="/wallet"
+              path="/receipt-review"
               element={
                 <PrivateRoute>
-                  <WalletPassPreviewPage />
+                  <ReceiptReviewPage />
                 </PrivateRoute>
               }
             />
@@ -221,7 +228,7 @@ function App() {
               path="/wallet-preview"
               element={
                 <PrivateRoute>
-                  <WalletPassPreviewPage />
+                  <WalletPassDetailPage />
                 </PrivateRoute>
               }
             />
@@ -229,7 +236,7 @@ function App() {
               path="/agent"
               element={
                 <PrivateRoute>
-                  <AgentQueryPageGoogle />
+                  <AgentPage />
                 </PrivateRoute>
               }
             />
@@ -237,7 +244,7 @@ function App() {
               path="/wallet/:passId"
               element={
                 <PrivateRoute>
-                  <WalletPassDetailPage />
+                  <WalletPassPreviewPage />
                 </PrivateRoute>
               }
             />
@@ -245,7 +252,7 @@ function App() {
               path="/insights"
               element={
                 <PrivateRoute>
-                  <SpendingInsightsPageGoogle />
+                  <InsightsPage />
                 </PrivateRoute>
               }
             />
