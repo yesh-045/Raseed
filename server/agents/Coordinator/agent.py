@@ -1,11 +1,11 @@
 from google.adk.agents import LlmAgent
 # from Coordinator.receipt_ingestion.agent import root_agent as receipt_ingestion_agent
-# from Coordinator.spending_insight.agent import root_agent as spending_agent
+from Coordinator.spending_insight.agent import root_agent as spending_agent
 from Coordinator.savings.agent import root_agent as savings_agent
 from Coordinator.shopping_list.agent import root_agent as shopping_agent
 
 root_agent = LlmAgent(
-    name="RaseedOrchestrator",
+    name="Coordinator",
     model="gemini-2.0-flash",
     description="Main agent responsible for routing user queries to the correct agent (e.g., receipt help, finance, shopping).",
     instruction=(
