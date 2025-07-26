@@ -420,7 +420,7 @@ const WalletPassPreviewPage = () => {
 
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={8000}
+        autoHideDuration={4000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
       >
         <Alert

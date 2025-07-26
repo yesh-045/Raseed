@@ -249,7 +249,7 @@ const UploadPage = () => {
       {/* Success Snackbar */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={8000}
+        autoHideDuration={4000}
         onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >

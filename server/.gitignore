@@ -7,8 +7,4 @@ __pycache__/
 env/
 
 venv/
-server/agents/ReceiptOrchestrator/subagents/google_wallet/google_cloud_credentials.json
-.env
-serviceAccount.json
-# Firebase config
-firebase-config.json
+/server/agents/ReceiptOrchestrator/subagents/google_wallet/google_cloud_credentials.json

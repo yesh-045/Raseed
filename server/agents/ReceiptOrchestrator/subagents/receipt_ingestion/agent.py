@@ -2,7 +2,8 @@ from google.adk.agents import LlmAgent, SequentialAgent
 from typing import List, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
-
+from google.adk.tools import google_search
+from google.adk.tools.agent_tool import AgentTool
 
 class Item(BaseModel):
     item_name: str = Field(..., description="Name of the item")
@@ -11,7 +12,7 @@ class Item(BaseModel):
     quantity: float = Field(..., description="Units purchased")
     unit_price: float = Field(..., description="Price per unit")
     tax: float = Field(..., description="Tax applied")
-
+    description: Optional[str] = Field(None, description="Optional description of the item")
 
 class Receipt(BaseModel):
     timestamp: datetime = Field(
@@ -84,12 +85,45 @@ If the receipt is for "The Corner Store," dated June 21, 2025, has a total of $1
 }
 """
 
-receipt_ingestion_agent = LlmAgent(
-    name="receipt_ingestion_agent",
+
+receipt_extract_agent = LlmAgent(
+    name="receipt_ingestion",
     model="gemini-2.0-flash",
     description="Agent for ingesting receipt data from images",
     instruction=instruction_text,
     output_key="parsed_receipt"
 )
 
+receipt_refinement_agent = LlmAgent(
+    name='receipt_refinement',
+    model='gemini-2.0-flash',
+    description='Agent for refining receipt data',
+    instruction = """
+    You are a data refinement agent.Your primary function is to process a structured JSON object representing a parsed receipt, enrich it with external data.
 
+**Your Goal:** Take the input JSON from the state, `{parsed_receipt}`, and for each item, use the `google_search` tool to find and add a descriptive summary and a more accurate category.
+
+**Core Instructions:**
+
+1.  **Receive Input:** You will be given a JSON object named `{parsed_receipt}` which contains the extracted data from a receipt.
+
+2.  **Iterate Through Items:** Process each JSON object within the `items` array one by one.
+
+3.  **Perform Google Search:** For each item, construct a search query using its `item_name` and `brand` (if available). For example, for an item named "Organic Blueberries" with brand "Driscoll's", a good query would be "Driscoll's Organic Blueberries". Use the `google_search` tool to get information.
+
+4.  **Enrich Item Data:**
+    *   **`category`:** Based on the search results, validate or refine the item's `category`. If the original category was generic (e.g., "Groceries") or `null`, update it to be more specific (e.g., "Produce", "Snacks", "Beverage"). If no better category can be determined, retain the original.
+    *   **`description`:** Add a new field to each item called `description`. This field must contain a concise, 10-15 word summary of the item based on the information found in your search. If no relevant information is found, the value for `description` MUST be `null`.
+5. ** Store The refined data in The same `{parsed_receipt}` JSON object format.
+---
+    """,
+    tools = [google_search],
+    output_key="parsed_receipt",
+)
+
+
+receipt_ingestion_agent = SequentialAgent(
+    name='receipt_ingestion',
+    description='Agent for ingesting receipt data from images and extracting structured information',
+    sub_agents=[receipt_extract_agent,receipt_refinement_agent],
+)
