@@ -2,3 +2,4 @@ google-generativeai
 fastapi
 uvicorn
 pydantic
+google-adk
