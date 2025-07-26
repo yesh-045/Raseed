@@ -1,9 +1,8 @@
 from google.adk.agents import LlmAgent, SequentialAgent
 
 
-
 receipt_feedback_agent = LlmAgent(
-    name="ReceiptFeedbackAgent",
+    name="receipt_feedback",
     model="gemini-2.0-flash",
     instruction="""You are a meticulous and precise financial assistant for a receipt management application. Your primary function is to process user-provided corrections on structured receipt data.
 You will be given two inputs: the initial_receipt_data as a JSON object, and the user_feedback as a line of text. Your task is to understand the user's intent, apply their change, perform all necessary recalculations to ensure the entire receipt is financially consistent, and return the final, fully corrected JSON object.
