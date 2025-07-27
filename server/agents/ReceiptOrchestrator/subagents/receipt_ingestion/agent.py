@@ -25,105 +25,100 @@ class Receipt(BaseModel):
     
 
 
+
+import requests
+import base64
+from google.adk.tools import FunctionTool
+
+def download_and_encode_image(image_url: str) -> Dict:
+    """
+    Downloads an image from URL and returns Base64 encoded string.
+    This will be called before invoking the agent.
+    """
+    try:
+        resp = requests.get(image_url, timeout=15)
+        b64 = base64.b64encode(resp.content).decode('utf-8')
+        return {"status" : True, "input_data" : b64}
+    except Exception as e:
+        raise Exception(f"Failed to download image: {str(e)}")
+
+
 instruction_text = """
-You are a specialized AI assistant for high-precision receipt processing. Your sole function is to perform Optical Character Recognition (OCR) on an uploaded receipt image and extract the data into a structured JSON format.
+You are a specialized AI assistant for high-precision receipt processing. You will receive a Base64-encoded image of a receipt and must extract structured data from it.
 
-**Your Goal:** Analyze the provided image of a receipt and meticulously extract the required information.
+**CRITICAL: You must carefully examine and read the ACTUAL text visible in the provided image. Do NOT generate fictional or example data.**
 
-**Core Instructions:**
+Your task:
+1. **CAREFULLY ANALYZE** the provided receipt image using OCR
+2. **READ ALL VISIBLE TEXT** from the actual image - store names, item names, prices, dates, etc.
+3. **EXTRACT ONLY REAL DATA** that you can actually see in the image
+4. **DO NOT MAKE UP OR GUESS** any information that is not clearly visible
+5. Return ONLY the JSON object below with the ACTUAL data from the image
 
-1.  **Analyze the Image:** Carefully scan the entire receipt image to identify all textual information.
-2.  **Extract Data:** From the text, extract the details that correspond to the fields in the required JSON schema below.
-3.  **Strictly Adhere to the Schema:** Your final output MUST be a single, valid JSON object that conforms exactly to the specified structure and data types. Do not add any extra fields or deviate from this format.
-4.  **Handle Missing Information:** This is critical. If a piece of information for any field cannot be found on the receipt, you MUST use a `null` value for that field. Do NOT guess, invent, or omit the field. For example, if the store's brand is not mentioned for an item, the output should be `"brand": null`.
-5.  **Infer Where Appropriate:** You may infer logical data. For instance, you can infer the `category` (e.g., "Dairy", "Produce", "Beverage") from the `item_name`. If you cannot confidently infer a category, use a general term like "Groceries" or `null`.
-6.  **Respond Only with JSON:** Do not include any explanatory text, apologies, or introductory sentences in your response. Your entire output must be the JSON object itself.
+**IMPORTANT: If you cannot clearly read specific information from the image (like a date, store name, or price), use `cant_read` for those fields. DO NOT invent data.**
 
----
-
-**Required JSON Output Schema:**
-
+*Required JSON Output Schema:*
 {
-  "timestamp": "string (ISO 8601 format: YYYY-MM-DDTHH:MM:SS)",
-  "store": "string",
-  "location": "string (Address or city of the store)",
-  "total_amount": "float",
+  "timestamp": "string (ISO 8601 format: YYYY-MM-DDTHH:MM:SS) - ONLY if clearly visible on receipt",
+  "store": "string - ONLY the actual store name visible on the receipt", 
+  "location": "string - ONLY if address is clearly visible on receipt",
+  "total_amount": "float - ONLY the actual total amount visible on receipt",
   "items": [
     {
-      "item_name": "string (Name of the purchased item)",
-      "category": "string (Inferred category like 'Groceries', 'Electronics', 'Clothing')",
-      "brand": "string (Brand of the item, if available)",
-      "quantity": "float (Number of units purchased, use 1.0 if not specified)",
-      "unit_price": "float (Price for a single unit of the item)",
-      "tax": "float (Tax amount applied to this specific item, if available)"
+      "item_name": "string - EXACT item name as it appears on receipt",
+      "category": "string - Infer from item name, but be accurate",
+      "brand": "string - ONLY if brand is clearly visible, otherwise null",
+      "quantity": "float - Actual quantity from receipt, default 1.0 if not specified",
+      "unit_price": "float - ACTUAL price visible on receipt",
+      "tax": "float - ONLY if item-specific tax is visible, otherwise null"
     }
   ]
 }
 
----
-
-**Example Scenario:**
-
-If the receipt is for "The Corner Store," dated June 21, 2025, has a total of $12.50, and lists one "Milk" for $3.50 but does not mention a brand or item-specific tax, your output should look like this:
-
-```json
-{
-  "timestamp": "2025-06-21T00:00:00",
-  "store": "The Corner Store",
-  "location": null,
-  "total_amount": 12.50,
-  "items": [
-    {
-      "item_name": "Milk",
-      "category": "Dairy",
-      "brand": null,
-      "quantity": 1.0,
-      "unit_price": 3.50,
-      "tax": null
-    }
-  ]
-}
+*Rules:*
+- NEVER generate fake or example data like "Snickers, Pepsi, Doritos"
+- ONLY extract information that is actually visible in the image
+- Use `null` for any field where information is not clearly readable
+- Categories should be logical based on the actual item names you see
+- Response must be ONLY the JSON object with REAL data from the image
+- No fake datas
 """
 
 
-receipt_extract_agent = LlmAgent(
+receipt_ingestion_agent = LlmAgent(
     name="receipt_ingestion",
-    model="gemini-2.0-flash",
-    description="Agent for ingesting receipt data from images",
+    model="gemini-1.5-flash",
+    description="Receipt parser OCR agent that processes Base64 image data directly",
     instruction=instruction_text,
+    tools=[],  # No tools needed
     output_key="parsed_receipt"
 )
 
-receipt_refinement_agent = LlmAgent(
-    name='receipt_refinement',
-    model='gemini-2.0-flash',
-    description='Agent for refining receipt data',
-    instruction = """
-    You are a data refinement agent.Your primary function is to process a structured JSON object representing a parsed receipt, enrich it with external data.
 
-**Your Goal:** Take the input JSON from the state, `{parsed_receipt}`, and for each item, use the `google_search` tool to find and add a descriptive summary and a more accurate category.
+# receipt_refinement_agent = LlmAgent(
+#     name='receipt_refinement',
+#     model='gemini-2.0-flash',
+#     description='Agent for refining receipt data',
+#     instruction = """
+#     You are a data refinement agent.Your primary function is to process a structured JSON object representing a parsed receipt, enrich it with external data.
 
-**Core Instructions:**
+# *Your Goal:* Take the input JSON from the state, {parsed_receipt}, and for each item, use the google_search tool to find and add a descriptive summary and a more accurate category.
 
-1.  **Receive Input:** You will be given a JSON object named `{parsed_receipt}` which contains the extracted data from a receipt.
+# *Core Instructions:*
 
-2.  **Iterate Through Items:** Process each JSON object within the `items` array one by one.
+# 1.  *Receive Input:* You will be given a JSON object named {parsed_receipt} which contains the extracted data from a receipt.
 
-3.  **Perform Google Search:** For each item, construct a search query using its `item_name` and `brand` (if available). For example, for an item named "Organic Blueberries" with brand "Driscoll's", a good query would be "Driscoll's Organic Blueberries". Use the `google_search` tool to get information.
+# 2.  *Iterate Through Items:* Process each JSON object within the items array one by one.
 
-4.  **Enrich Item Data:**
-    *   **`category`:** Based on the search results, validate or refine the item's `category`. If the original category was generic (e.g., "Groceries") or `null`, update it to be more specific (e.g., "Produce", "Snacks", "Beverage"). If no better category can be determined, retain the original.
-    *   **`description`:** Add a new field to each item called `description`. This field must contain a concise, 10-15 word summary of the item based on the information found in your search. If no relevant information is found, the value for `description` MUST be `null`.
-5. ** Store The refined data in The same `{parsed_receipt}` JSON object format.
----
-    """,
-    tools = [google_search],
-    output_key="parsed_receipt",
-)
+# 3.  *Perform Google Search:* For each item, construct a search query using its item_name and brand (if available). For example, for an item named "Organic Blueberries" with brand "Driscoll's", a good query would be "Driscoll's Organic Blueberries". Use the google_search tool to get information.
 
+# 4.  *Enrich Item Data:*
+#     *   **category:** Based on the search results, validate or refine the item's category. If the original category was generic (e.g., "Groceries") or null, update it to be more specific (e.g., "Produce", "Snacks", "Beverage"). If no better category can be determined, retain the original.
+#     *   **description:** Add a new field to each item called description. This field must contain a concise, 10-15 word summary of the item based on the information found in your search. If no relevant information is found, the value for description MUST be null.
+# 5. ** Store The refined data in The same {parsed_receipt} JSON object format.
+# ---
+#     """,
+#     tools = [google_search],
+#     output_key="parsed_receipt",
+# )
 
-receipt_ingestion_agent = SequentialAgent(
-    name='receipt_ingestion',
-    description='Agent for ingesting receipt data from images and extracting structured information',
-    sub_agents=[receipt_extract_agent,receipt_refinement_agent],
-)
