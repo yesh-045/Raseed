@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 from routes.insights import router as insights_router
 from auth_middleware import get_current_user, get_current_user_optional
 from firestore_service import firestore_service
 import os
+import time
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -48,6 +50,22 @@ class UserProfile(BaseModel):
     behavior_summary: Optional[str] = ""
     savings_pct: Optional[float] = None
     uid: Optional[str] = None
+
+class ReceiptProcessRequest(BaseModel):
+    receiptId: str
+    downloadURL: str
+    userId: str
+    fileName: str
+    fileType: str
+    storagePath: Optional[str] = None
+
+class ProcessingResponse(BaseModel):
+    success: bool
+    processingId: str
+    status: str
+    message: str
+    receiptId: Optional[str] = None
+    estimatedCompletionTime: Optional[str] = None
 
 @app.get("/user/{uid}")
 async def get_user(uid: str):
@@ -92,6 +110,84 @@ async def get_receipts(uid: str):
     except Exception as e:
         print(f"Exception in get_receipts: {str(e)}")
         return {"success": False, "error": str(e), "receipts": []}
+
+@app.post("/api/process-receipt")
+async def process_receipt(request: ReceiptProcessRequest):
+    """Process a receipt using AI"""
+    try:
+        print(f"Processing receipt: {request.receiptId} for user: {request.userId}")
+        
+        # Create processing ID
+        processing_id = f"proc_{int(time.time())}_{request.receiptId}"
+        
+        # Store processing request in Firestore for tracking
+        processing_data = {
+            "processingId": processing_id,
+            "receiptId": request.receiptId,
+            "userId": request.userId,
+            "fileName": request.fileName,
+            "downloadURL": request.downloadURL,
+            "status": "processing",
+            "progress": 0,
+            "startedAt": datetime.now().isoformat(),
+            "estimatedCompletionTime": datetime.fromtimestamp(time.time() + 60).isoformat()
+        }
+        
+        # Save to Firestore (you can implement this in firestore_service)
+        # firestore_service.save_processing_status(processing_id, processing_data)
+        
+        # TODO: Implement actual AI processing here
+        # For now, return success response
+        
+        return ProcessingResponse(
+            success=True,
+            processingId=processing_id,
+            status="processing",
+            message="Receipt submitted for processing. Processing will continue in the background.",
+            receiptId=request.receiptId,
+            estimatedCompletionTime=processing_data["estimatedCompletionTime"]
+        )
+        
+    except Exception as e:
+        print(f"Exception in process_receipt: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/process-status/{receipt_id}")
+async def get_processing_status(receipt_id: str):
+    """Get processing status for a receipt"""
+    try:
+        print(f"Getting processing status for receipt: {receipt_id}")
+        
+        # TODO: Get actual status from database
+        # For now, return mock progressive status
+        
+        import random
+        progress = min(100, random.randint(20, 100))
+        
+        if progress >= 100:
+            status = "completed"
+            message = "Processing completed successfully"
+        else:
+            status = "processing"
+            message = "Processing in progress..."
+        
+        return {
+            "receiptId": receipt_id,
+            "status": status,
+            "progress": progress,
+            "message": message,
+            "updatedAt": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"Exception in get_processing_status: {str(e)}")
+        return {
+            "receiptId": receipt_id,
+            "status": "processing",
+            "progress": 50,
+            "message": "Processing in progress...",
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn

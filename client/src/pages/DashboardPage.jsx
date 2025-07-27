@@ -1,4 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton } from '@mui/material';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { getAuth } from 'firebase/auth';
@@ -17,7 +28,7 @@ import {
 } from '@mui/material';
 import {
   Receipt as ReceiptIcon,
-  CameraAlt as CameraAltIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer, BottomNavigation } from '../components';
@@ -44,6 +55,8 @@ const DashboardPage = () => {
   });
 
   const [recentActivity, setRecentActivity] = useState([]);
+  // Array of weeks, each week is [Sun, Mon, ..., Sat]
+  const [monthlyWeeklySpend, setMonthlyWeeklySpend] = useState([]);
 
   // Fetch recent receipts from backend
   const fetchRecentActivity = async () => {
@@ -83,10 +96,45 @@ const DashboardPage = () => {
         }).length;
         const totalSpend = receiptsArr.reduce((sum, r) => sum + (r.total_amount || 0), 0);
         setStats({
-          totalSpend: `₹${totalSpend}`,
+          totalSpend: `₹${totalSpend.toFixed(2)}`,
           totalReceipts,
           thisMonth,
         });
+
+        // Monthly weekly spend calculation
+        // Find all weeks in current month
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        // Get first day of month
+        const firstDay = new Date(year, month, 1);
+        // Find the first Sunday on/after the first day
+        const firstSunday = new Date(firstDay);
+        firstSunday.setDate(firstDay.getDate() + (7 - firstDay.getDay()) % 7);
+        // Build week ranges (start/end dates)
+        let weekRanges = [];
+        let weekStart = new Date(firstDay);
+        while (weekStart.getMonth() === month) {
+          let weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekStart.getDate() + 6);
+          weekRanges.push({ start: new Date(weekStart), end: new Date(weekEnd) });
+          weekStart.setDate(weekStart.getDate() + 7);
+        }
+
+        // For each week, sum spend per day
+        const weeksData = weekRanges.map(({ start, end }) => {
+          const weekSpend = [0,0,0,0,0,0,0];
+          receiptsArr.forEach(r => {
+            if (!r.timestamp) return;
+            const d = new Date(r.timestamp);
+            if (d >= start && d <= end) {
+              const dayIdx = d.getDay();
+              weekSpend[dayIdx] += r.total_amount || 0;
+            }
+          });
+          return weekSpend;
+        });
+        setMonthlyWeeklySpend(weeksData);
       }
     } catch (err) {
       // Optionally handle error
@@ -230,14 +278,10 @@ const DashboardPage = () => {
         <Box sx={{ pt: 3 }}>
           {/* Greeting & Stats */}
           <Box sx={{ mb: 4 }}>
-            <Typography variant="h4" sx={{ fontWeight: 400, mb: 1 }}>
-              Good morning
-            </Typography>
             <Typography variant="body1" color="text.secondary">
               Here's your spending overview
             </Typography>
           </Box>
-
           {/* Stats Cards */}
           <Stack spacing={3} sx={{ mb: 4 }}>
             <Card elevation={2} sx={{ borderRadius: '16px' }}>
@@ -371,6 +415,40 @@ const DashboardPage = () => {
               ))}
             </Stack>
           </Box>
+
+          {/* Weekly Spending Comparison Chart for all weeks in current month */}
+          <Box sx={{ mt: 6, mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 500, mb: 2 }}>
+              Weekly Spend Comparison
+            </Typography>
+            <Card elevation={2} sx={{ borderRadius: '16px', p: 2 }}>
+              <Bar
+                data={{
+                  labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                  datasets: monthlyWeeklySpend.map((week, idx) => ({
+                    label: `Week ${idx + 1}`,
+                    data: week,
+                    backgroundColor: `rgba(66,133,244,${0.3 + 0.2 * idx})`,
+                    borderRadius: 8,
+                  })),
+                }}
+                options={{
+                  responsive: true,
+                  plugins: {
+                    legend: { display: true },
+                    title: { display: false },
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: { stepSize: 100 },
+                    },
+                  },
+                }}
+                height={260}
+              />
+            </Card>
+          </Box>
         </Box>
       </PageContainer>
 
@@ -387,6 +465,7 @@ const DashboardPage = () => {
                 value={profile.name}
                 onChange={e => setProfile({ ...profile, name: e.target.value })}
                 fullWidth
+                sx={{ mt: '5px', mb: '3px' }}
               />
               <TextField
                 label="Email"
@@ -434,7 +513,7 @@ const DashboardPage = () => {
           zIndex: 1000,
         }}
       >
-        <CameraAltIcon />
+        <AddIcon />
       </Fab>
 
       <BottomNavigation />

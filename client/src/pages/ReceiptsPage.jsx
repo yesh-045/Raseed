@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import app from '../firebase';
 import {
   Box,
@@ -21,44 +20,56 @@ import {
   ListItemText,
   Snackbar,
   Alert,
+  Divider,
+  TextField,
 } from '@mui/material';
 import {
   Receipt as ReceiptIcon,
+  CalendarMonth as CalendarMonthIcon,
   ArrowBack as ArrowBackIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
   MoreVert as MoreVertIcon,
-  Download as DownloadIcon,
   PictureAsPdf as PdfIcon,
   Share as ShareIcon,
   Email as EmailIcon,
   CheckBox as CheckBoxIcon,
   CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
-  SelectAll as SelectAllIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components';
 
 const ReceiptsPage = () => {
-  // Search bar toggle state
-  const [showSearch, setShowSearch] = useState(false);
-  const handleSearchToggle = () => setShowSearch((prev) => !prev);
-  // Sorting state
-  const [sortAnchorEl, setSortAnchorEl] = useState(null);
-  const [sortCriteria, setSortCriteria] = useState('date-desc'); // default: newest first
-
-  const handleSortClick = (event) => {
-    setSortAnchorEl(event.currentTarget);
+  // Calendar navigation state
+  const today = new Date();
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarMonth(11);
+      setCalendarYear(prev => prev - 1);
+    } else {
+      setCalendarMonth(prev => prev - 1);
+    }
+    setSelectedDate(null);
   };
-  const handleSortClose = () => {
-    setSortAnchorEl(null);
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarMonth(0);
+      setCalendarYear(prev => prev + 1);
+    } else {
+      setCalendarMonth(prev => prev + 1);
+    }
+    setSelectedDate(null);
   };
-  const handleSortSelect = (criteria) => {
-    setSortCriteria(criteria);
-    setSortAnchorEl(null);
+  const handleYearChange = (e) => {
+    setCalendarYear(Number(e.target.value));
+    setSelectedDate(null);
   };
   const navigate = useNavigate();
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
@@ -66,76 +77,167 @@ const ReceiptsPage = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedReceipts, setSelectedReceipts] = useState([]);
-
-  // Receipts data from backend
+  const [showSearch, setShowSearch] = useState(false);
+  const [sortAnchorEl, setSortAnchorEl] = useState(null);
+  const [sortCriteria, setSortCriteria] = useState('date-desc');
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    // Get UID from localStorage or AuthContext (adjust as needed)
+  // Fetch receipts data
+  useEffect(() => {
     const auth = getAuth(app);
     const user = auth.currentUser;
-    const uid = user.uid;
-    console.log('Fetching receipts for UID:', uid);
+    const uid = user?.uid;
+    
     if (!uid) {
       setLoading(false);
       return;
     }
-    fetch(`http://localhost:8000/receipts/${uid}`)
-      .then(res => res.json())
-      .then(data => {
-        // Google logo colors
+    
+    const fetchReceipts = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/receipts/${uid}`);
+        const data = await response.json();
+        
         const googleColors = ['#4285F4', '#EA4335', '#FBBC05', '#34A853'];
         const receiptsArr = Array.isArray(data.receipts) ? data.receipts : [];
-        const mapped = receiptsArr.map((r, idx) => ({
-          id: r.receipt_id || r.id,
-          merchant: r.store || 'Unknown',
-          total: r.total_amount ? `₹${r.total_amount}` : '',
-          date: r.timestamp ? new Date(r.timestamp).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '',
-          category: r.items && r.items.length > 0 ? r.items[0].category : '',
-          color: googleColors[idx % googleColors.length],
-          items: r.items ? r.items.length : 0,
-          location: r.location || '',
-          summary: r.summary || '',
-          overspent: r.overspent,
-        }));
+        
+        const mapped = receiptsArr.map((r, idx) => {
+          const rawDate = r.timestamp ? new Date(r.timestamp) : null;
+          const dateStr = rawDate ? rawDate.toISOString().split('T')[0] : '';
+          
+          return {
+            id: r.receipt_id || r.id,
+            merchant: r.store || 'Unknown',
+            total: r.total_amount ? `₹${r.total_amount}` : '',
+            date: rawDate ? rawDate.toLocaleString('en-IN', { 
+              dateStyle: 'medium', 
+              timeStyle: 'short' 
+            }) : '',
+            category: r.items?.[0]?.category || '',
+            color: googleColors[idx % googleColors.length],
+            items: r.items?.length || 0,
+            location: r.location || '',
+            summary: r.summary || '',
+            overspent: r.overspent,
+            rawDate,
+            rawAmount: parseFloat(r.total_amount) || 0,
+            dateStr // Store the ISO date string for easy comparison
+          };
+        });
+        
         setReceipts(mapped);
-        setLoading(false);
-      })
-      .catch(() => {
+      } catch (error) {
+        console.error('Error fetching receipts:', error);
         setReceipts([]);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchReceipts();
   }, []);
 
-  // Dynamic categories from receipts
-  const categories = React.useMemo(() => {
-    const allCategories = receipts
-      .map(r => r.items && Array.isArray(r.items) ? r.items.map(item => item.category) : [r.category])
-      .flat()
-      .filter(Boolean);
-    const unique = Array.from(new Set(allCategories));
-    return ['All', ...unique];
+  // Calendar heatmap data
+  const calendarData = useMemo(() => {
+    const dateTotals = {};
+    receipts.forEach(r => {
+      if (r.dateStr && !isNaN(r.rawAmount)) {
+        dateTotals[r.dateStr] = (dateTotals[r.dateStr] || 0) + r.rawAmount;
+      }
+    });
+    return dateTotals;
   }, [receipts]);
 
-  const filteredReceipts = receipts.filter(receipt => {
-  const matchesSearch = receipt.merchant && receipt.merchant.toLowerCase().includes(searchQuery.toLowerCase());
-  const matchesTab = tabValue === 0 || receipt.category === categories[tabValue];
-  return matchesSearch && matchesTab;
-  });
+  // Color scale for spend
+  const getSpendColor = (amount) => {
+    if (amount === 0) return '#e0e0e0';
+    if (amount < 500) return '#A5D6A7';
+    if (amount < 2000) return '#FFF59D';
+    if (amount < 5000) return '#FFB74D';
+    return '#E57373';
+  };
 
-  // Sort filteredReceipts based on sortCriteria
-  const sortedReceipts = React.useMemo(() => {
+  // Calendar grid for current month
+  const calendarCells = useMemo(() => {
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) {
+      cells.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(calendarYear, calendarMonth, d);
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+      const amount = calendarData[dateStr] || 0;
+      const hasReceipts = amount > 0;
+      cells.push({
+        day: d,
+        dateStr,
+        amount,
+        color: hasReceipts ? getSpendColor(amount) : '#e0e0e0',
+        hasReceipts
+      });
+    }
+    return cells;
+  }, [calendarData, receipts, calendarMonth, calendarYear]);
+
+  // Dynamic categories from receipts
+  const categories = useMemo(() => {
+    const allCategories = receipts
+      .flatMap(r => 
+        r.items && Array.isArray(r.items) 
+          ? r.items.map(item => item.category) 
+          : [r.category]
+      )
+      .filter(Boolean);
+    
+    const unique = ['All', ...new Set(allCategories)];
+    return unique;
+  }, [receipts]);
+
+  const filteredReceipts = useMemo(() => {
+    let result = [...receipts];
+    
+    // Filter by search query
+    if (searchQuery) {
+      result = result.filter(receipt => 
+        receipt.merchant?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    // Filter by category tab
+    if (tabValue > 0 && categories[tabValue]) {
+      result = result.filter(receipt => 
+        receipt.category === categories[tabValue]
+      );
+    }
+    
+    // Filter by selected date if calendar is shown and date is selected
+    if (showCalendar && selectedDate) {
+      result = result.filter(receipt => 
+        receipt.dateStr === selectedDate
+      );
+    }
+    
+    return result;
+  }, [receipts, searchQuery, tabValue, categories, showCalendar, selectedDate]);
+
+  // Sort filteredReceipts
+  const sortedReceipts = useMemo(() => {
     const arr = [...filteredReceipts];
     switch (sortCriteria) {
       case 'date-desc':
-        return arr.sort((a, b) => new Date(b.date) - new Date(a.date));
+        return arr.sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0));
       case 'date-asc':
-        return arr.sort((a, b) => new Date(a.date) - new Date(b.date));
+        return arr.sort((a, b) => (a.rawDate || 0) - (b.rawDate || 0));
       case 'amount-desc':
-        return arr.sort((a, b) => (parseFloat(b.total.replace(/[^\d.]/g, '')) || 0) - (parseFloat(a.total.replace(/[^\d.]/g, '')) || 0));
+        return arr.sort((a, b) => b.rawAmount - a.rawAmount);
       case 'amount-asc':
-        return arr.sort((a, b) => (parseFloat(a.total.replace(/[^\d.]/g, '')) || 0) - (parseFloat(b.total.replace(/[^\d.]/g, '')) || 0));
+        return arr.sort((a, b) => a.rawAmount - b.rawAmount);
       case 'merchant-asc':
         return arr.sort((a, b) => a.merchant.localeCompare(b.merchant));
       case 'merchant-desc':
@@ -145,48 +247,58 @@ const ReceiptsPage = () => {
     }
   }, [filteredReceipts, sortCriteria]);
 
+  // Event handlers
+  const handleCalendarToggle = () => {
+    setShowCalendar(prev => !prev);
+    if (showCalendar) {
+      setSelectedDate(null); // Clear date selection when hiding calendar
+    }
+  };
+
+  const handleSearchToggle = () => setShowSearch(prev => !prev);
+  
+  const handleSortClick = (event) => setSortAnchorEl(event.currentTarget);
+  const handleSortClose = () => setSortAnchorEl(null);
+  const handleSortSelect = (criteria) => {
+    setSortCriteria(criteria);
+    handleSortClose();
+  };
+
   const handleReceiptClick = (receiptId) => {
     if (selectionMode) {
       handleReceiptSelect(receiptId);
     } else {
-      // Find the actual backend id (receipt_id or id) from filteredReceipts
       const receipt = filteredReceipts.find(r => r.id === receiptId);
-      const backendId = receipt && String(receipt.receipt_id || receipt.id);
-      if (backendId) {
-        navigate(`/receipt/${backendId}`);
+      if (receipt) {
+        navigate(`/receipt/${receipt.id}`);
       }
     }
   };
 
   const handleReceiptSelect = (receiptId) => {
-    setSelectedReceipts(prev => {
-      if (prev.includes(receiptId)) {
-        return prev.filter(id => id !== receiptId);
-      } else {
-        return [...prev, receiptId];
-      }
-    });
+    setSelectedReceipts(prev => 
+      prev.includes(receiptId) 
+        ? prev.filter(id => id !== receiptId) 
+        : [...prev, receiptId]
+    );
   };
 
   const handleToggleSelectionMode = () => {
     setSelectionMode(!selectionMode);
-    setSelectedReceipts([]);
+    if (selectionMode) setSelectedReceipts([]);
   };
 
   const handleSelectAll = () => {
-    if (selectedReceipts.length === filteredReceipts.length) {
-      setSelectedReceipts([]);
-    } else {
-      setSelectedReceipts(filteredReceipts.map(r => r.id));
-    }
+    setSelectedReceipts(prev => 
+      prev.length === filteredReceipts.length 
+        ? [] 
+        : filteredReceipts.map(r => r.id)
+    );
   };
 
   const handleBulkDownloadPDF = async () => {
     try {
-      // TODO: Replace with actual backend API call
-      // await downloadMultipleReceiptsPDF(selectedReceipts);
-      
-      // Simulate download for now
+      // Simulate download
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       setSnackbar({
@@ -200,7 +312,7 @@ const ReceiptsPage = () => {
     } catch (error) {
       setSnackbar({
         open: true,
-        message: 'Failed to download receipts. Please try again.',
+        message: 'Failed to download receipts',
         severity: 'error',
       });
     }
@@ -219,21 +331,16 @@ const ReceiptsPage = () => {
 
   const handleDownloadPDF = async () => {
     try {
-      // TODO: Replace with actual backend API call
-      // await downloadReceiptPDF(selectedReceipt.id);
-      
-      // Simulate download for now
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
       setSnackbar({
         open: true,
-        message: `${selectedReceipt.merchant} receipt downloaded as PDF`,
+        message: `${selectedReceipt.merchant} receipt downloaded`,
         severity: 'success',
       });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: 'Failed to download PDF. Please try again.',
+        message: 'Failed to download PDF',
         severity: 'error',
       });
     }
@@ -249,13 +356,12 @@ const ReceiptsPage = () => {
           url: window.location.href,
         });
       } else {
-        // Fallback: copy to clipboard
         await navigator.clipboard.writeText(
           `Receipt from ${selectedReceipt.merchant} - ${selectedReceipt.total} on ${selectedReceipt.date}`
         );
         setSnackbar({
           open: true,
-          message: 'Receipt details copied to clipboard',
+          message: 'Receipt details copied',
           severity: 'success',
         });
       }
@@ -270,8 +376,6 @@ const ReceiptsPage = () => {
   };
 
   const handleEmail = () => {
-    // TODO: Replace with actual email functionality
-    // This would open email client or send via backend
     setSnackbar({
       open: true,
       message: `Emailing ${selectedReceipt.merchant} receipt...`,
@@ -280,87 +384,76 @@ const ReceiptsPage = () => {
     handleMenuClose();
   };
 
+  const handleDateSelect = (dateStr) => {
+    if (dateStr === selectedDate) {
+      setSelectedDate(null); // Deselect if same date clicked again
+    } else {
+      setSelectedDate(dateStr);
+    }
+  };
+
   return (
     <Box sx={{ 
       minHeight: '100vh', 
       bgcolor: 'background.default',
       pb: 10 
     }}>
-      {/* Header */}
-      <Box
-        sx={{
-          position: 'sticky',
-          top: 0,
-          bgcolor: 'background.paper',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          zIndex: 100,
-        }}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            px: 2,
-            py: 2,
-            gap: 2,
-            justifyContent: 'space-between',
-          }}
-        >
+      {/* Single Header */}
+      <Box sx={{
+        position: 'sticky',
+        top: 0,
+        bgcolor: 'background.paper',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        zIndex: 100,
+      }}>
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          px: 2,
+          py: 2,
+          gap: 2,
+          justifyContent: 'space-between',
+        }}>
           {selectionMode ? (
             <>
-              <IconButton
-                onClick={handleToggleSelectionMode}
-                size="small"
-                sx={{ color: 'text.primary' }}
-              >
+              <IconButton onClick={handleToggleSelectionMode} size="small">
                 <CloseIcon />
               </IconButton>
               <Typography variant="h6" sx={{ fontWeight: 500, flex: 1 }}>
                 {selectedReceipts.length} selected
               </Typography>
-              <IconButton
-                onClick={handleSelectAll}
-                size="small"
-                sx={{ color: 'primary.main' }}
-              >
-                <CheckBoxIcon />
+              <IconButton onClick={handleSelectAll} size="small">
+                {selectedReceipts.length === filteredReceipts.length ? (
+                  <CheckBoxIcon color="primary" />
+                ) : (
+                  <CheckBoxOutlineBlankIcon />
+                )}
               </IconButton>
             </>
           ) : (
             <>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton
-                  onClick={() => navigate('/dashboard')}
-                  size="small"
-                  sx={{ color: 'text.primary' }}
-                >
-                  <ArrowBackIcon />
-                </IconButton>
-              </Box>
+              <IconButton onClick={() => navigate('/dashboard')} size="small">
+                <ArrowBackIcon />
+              </IconButton>
               <Typography variant="h6" sx={{ fontWeight: 500, flex: 1 }}>
                 Receipts
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton 
-                  size="small"
-                  onClick={handleToggleSelectionMode}
-                  sx={{ color: 'primary.main' }}
-                >
-                  <CheckBoxIcon />
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <IconButton onClick={handleToggleSelectionMode} size="small">
+                  <CheckBoxOutlineBlankIcon />
                 </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={handleSearchToggle}
-                  sx={{ color: 'primary.main', ml: 1 }}
-                >
+                <IconButton onClick={handleSearchToggle} size="small">
                   <SearchIcon />
                 </IconButton>
-                <IconButton
+                <IconButton 
+                  onClick={handleCalendarToggle} 
                   size="small"
-                  onClick={handleSortClick}
-                  sx={{ color: 'primary.main', ml: 1 }}
+                  color={showCalendar ? 'primary' : 'default'}
                 >
+                  <CalendarMonthIcon />
+                </IconButton>
+                <IconButton onClick={handleSortClick} size="small">
                   <FilterIcon />
                 </IconButton>
                 <Menu
@@ -368,15 +461,25 @@ const ReceiptsPage = () => {
                   open={Boolean(sortAnchorEl)}
                   onClose={handleSortClose}
                   PaperProps={{ sx: { borderRadius: '12px', minWidth: 180 } }}
-                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                 >
-                  <MenuItem onClick={() => handleSortSelect('date-desc')}>Date (Newest)</MenuItem>
-                  <MenuItem onClick={() => handleSortSelect('date-asc')}>Date (Oldest)</MenuItem>
-                  <MenuItem onClick={() => handleSortSelect('amount-desc')}>Amount (High to Low)</MenuItem>
-                  <MenuItem onClick={() => handleSortSelect('amount-asc')}>Amount (Low to High)</MenuItem>
-                  <MenuItem onClick={() => handleSortSelect('merchant-asc')}>Merchant (A-Z)</MenuItem>
-                  <MenuItem onClick={() => handleSortSelect('merchant-desc')}>Merchant (Z-A)</MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('date-desc')}>
+                    Date (Newest)
+                  </MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('date-asc')}>
+                    Date (Oldest)
+                  </MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('amount-desc')}>
+                    Amount (High to Low)
+                  </MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('amount-asc')}>
+                    Amount (Low to High)
+                  </MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('merchant-asc')}>
+                    Merchant (A-Z)
+                  </MenuItem>
+                  <MenuItem onClick={() => handleSortSelect('merchant-desc')}>
+                    Merchant (Z-A)
+                  </MenuItem>
                 </Menu>
               </Box>
             </>
@@ -386,16 +489,14 @@ const ReceiptsPage = () => {
         {/* Search Bar */}
         {!selectionMode && showSearch && (
           <Box sx={{ px: 2, pb: 2 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                bgcolor: 'grey.100',
-                borderRadius: '24px',
-                px: 2,
-                py: 1,
-              }}
-            >
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              bgcolor: 'grey.100',
+              borderRadius: '24px',
+              px: 2,
+              py: 1,
+            }}>
               <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
               <InputBase
                 placeholder="Search receipts..."
@@ -410,17 +511,106 @@ const ReceiptsPage = () => {
         {/* Bulk Actions */}
         {selectionMode && selectedReceipts.length > 0 && (
           <Box sx={{ px: 2, pb: 2 }}>
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<PdfIcon />}
-                onClick={handleBulkDownloadPDF}
-                sx={{ borderRadius: '20px', textTransform: 'none' }}
-              >
-                Download PDF
-              </Button>
-            </Stack>
+            <Button
+              variant="outlined"
+              startIcon={<PdfIcon />}
+              onClick={handleBulkDownloadPDF}
+              sx={{ borderRadius: '20px', textTransform: 'none' }}
+            >
+              Download PDF
+            </Button>
+          </Box>
+        )}
+
+        {/* Calendar Heatmap - shown only when toggled */}
+        {showCalendar && (
+          <Box sx={{
+            px: 2,
+            py: 2,
+            bgcolor: 'background.paper',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <IconButton size="small" onClick={handlePrevMonth}>
+                {'<'}
+              </IconButton>
+              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                {new Date(calendarYear, calendarMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </Typography>
+              <IconButton size="small" onClick={handleNextMonth}>
+                {'>'}
+              </IconButton>
+              <Box sx={{ ml: 2 }}>
+                <TextField
+                  select
+                  value={calendarYear}
+                  onChange={handleYearChange}
+                  size="small"
+                  sx={{ minWidth: 80 }}
+                >
+                  {[...Array(6)].map((_, i) => {
+                    const y = today.getFullYear() - 2 + i;
+                    return <MenuItem key={y} value={y}>{y}</MenuItem>;
+                  })}
+                </TextField>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.5 }}>
+              {['S','M','T','W','T','F','S'].map((day, i) => (
+                <Typography key={i} variant="caption" sx={{ 
+                  textAlign: 'center', 
+                  fontWeight: 500,
+                  fontSize: '0.75rem'
+                }}>
+                  {day}
+                </Typography>
+              ))}
+              {calendarCells.map((cell, idx) => cell ? (
+                <Box 
+                  key={idx}
+                  sx={{
+                    aspectRatio: '1/1',
+                    borderRadius: '4px',
+                    bgcolor: cell.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: cell.hasReceipts ? 'pointer' : 'default',
+                    border: cell.dateStr === selectedDate ? '2px solid #1976d2' : '1px solid transparent',
+                    position: 'relative',
+                    '&:hover': {
+                      opacity: cell.hasReceipts ? 0.8 : 1
+                    }
+                  }}
+                  onClick={() => cell.hasReceipts && handleDateSelect(cell.dateStr)}
+                  title={cell.hasReceipts ? `₹${cell.amount} spent on ${cell.dateStr}` : 'No receipts'}
+                >
+                  <Typography variant="caption" sx={{ 
+                    fontWeight: 700, 
+                    fontSize: '0.7rem',
+                    color: '#000',
+                    textShadow: 'none',
+                  }}>
+                    {cell.day}
+                  </Typography>
+                </Box>
+              ) : (
+                <Box key={idx} sx={{ aspectRatio: '1/1' }} />
+              ))}
+            </Box>
+            {selectedDate && (
+              <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
+                Showing receipts for {new Date(selectedDate).toLocaleDateString()}
+                <IconButton 
+                  size="small" 
+                  onClick={() => setSelectedDate(null)}
+                  sx={{ ml: 1 }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Typography>
+            )}
           </Box>
         )}
 
@@ -428,7 +618,7 @@ const ReceiptsPage = () => {
         {!selectionMode && (
           <Tabs
             value={tabValue}
-            onChange={(e, newValue) => setTabValue(newValue)}
+            onChange={(_, newValue) => setTabValue(newValue)}
             variant="scrollable"
             scrollButtons="auto"
             sx={{
@@ -448,11 +638,17 @@ const ReceiptsPage = () => {
 
       <PageContainer>
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-            <Typography variant="body1" color="text.secondary">Loading receipts...</Typography>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            minHeight: '50vh' 
+          }}>
+            <Typography variant="body1" color="text.secondary">
+              Loading receipts...
+            </Typography>
           </Box>
-        ) : filteredReceipts.length === 0 ? (
-          // Empty State
+        ) : sortedReceipts.length === 0 ? (
           <Box sx={{ 
             display: 'flex', 
             flexDirection: 'column', 
@@ -462,37 +658,33 @@ const ReceiptsPage = () => {
             textAlign: 'center',
             px: 3,
           }}>
-            <Box
-              sx={{
-                width: 120,
-                height: 120,
-                borderRadius: '50%',
-                bgcolor: 'grey.100',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mb: 3,
-              }}
-            >
+            <Box sx={{
+              width: 120,
+              height: 120,
+              borderRadius: '50%',
+              bgcolor: 'grey.100',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 3,
+            }}>
               <ReceiptIcon sx={{ fontSize: 48, color: 'grey.400' }} />
             </Box>
             
             <Typography variant="h6" sx={{ mb: 1, fontWeight: 500 }}>
-              {searchQuery ? 'No matching receipts' : 'No receipts yet'}
+              {searchQuery || selectedDate ? 'No matching receipts' : 'No receipts yet'}
             </Typography>
             
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ mb: 4, maxWidth: 280 }}
-            >
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
               {searchQuery 
                 ? 'Try adjusting your search or filters'
+                : selectedDate
+                ? 'No receipts found for selected date'
                 : 'Upload your first receipt to get started'
               }
             </Typography>
 
-            {!searchQuery && (
+            {!searchQuery && !selectedDate && (
               <Button
                 variant="contained"
                 onClick={() => navigate('/upload')}
@@ -508,14 +700,10 @@ const ReceiptsPage = () => {
             )}
           </Box>
         ) : (
-          // Receipts List
           <Box sx={{ pt: 2 }}>
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ mb: 3, px: 1 }}
-            >
-              {filteredReceipts.length} receipt{filteredReceipts.length !== 1 ? 's' : ''}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, px: 1 }}>
+              {sortedReceipts.length} receipt{sortedReceipts.length !== 1 ? 's' : ''}
+              {selectedDate && ` on ${new Date(selectedDate).toLocaleDateString()}`}
             </Typography>
 
             <Stack spacing={2}>
@@ -526,27 +714,24 @@ const ReceiptsPage = () => {
                   onClick={() => handleReceiptClick(receipt.id)}
                   sx={{
                     border: '1px solid',
-                    borderColor: selectionMode && selectedReceipts.includes(receipt.id) 
+                    borderColor: selectedReceipts.includes(receipt.id) 
                       ? 'primary.main' 
                       : 'divider',
                     borderRadius: '16px',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    bgcolor: selectionMode && selectedReceipts.includes(receipt.id) 
+                    bgcolor: selectedReceipts.includes(receipt.id) 
                       ? 'primary.50' 
                       : 'background.paper',
                     '&:hover': {
                       borderColor: 'primary.main',
-                      transform: selectionMode ? 'none' : 'translateY(-2px)',
-                      boxShadow: selectionMode ? 1 : 2,
+                      boxShadow: 2,
                     },
                   }}
                 >
                   <CardContent sx={{ p: 3 }}>
                     <Box sx={{ display: 'flex', gap: 3 }}>
-                      {/* Selection Checkbox */}
                       {selectionMode && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', pt: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <IconButton
                             size="small"
                             onClick={(e) => {
@@ -563,30 +748,25 @@ const ReceiptsPage = () => {
                         </Box>
                       )}
 
-                      {/* Merchant Avatar */}
-                      <Avatar
-                        sx={{
-                          width: 56,
-                          height: 56,
-                          bgcolor: receipt.color,
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '1.25rem',
-                        }}
-                      >
+                      <Avatar sx={{
+                        width: 56,
+                        height: 56,
+                        bgcolor: receipt.color,
+                        color: 'white',
+                        fontWeight: 600,
+                        fontSize: '1.25rem',
+                      }}>
                         {receipt.merchant.charAt(0)}
                       </Avatar>
 
-                      {/* Receipt Details */}
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                          <Typography 
-                            variant="h6" 
-                            sx={{ 
-                              fontWeight: 600, 
-                              color: 'text.primary' 
-                            }}
-                          >
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          mb: 1,
+                        }}>
+                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
                             {receipt.merchant}
                           </Typography>
                           
@@ -600,23 +780,19 @@ const ReceiptsPage = () => {
                           )}
                         </Box>
                         
-                        <Typography 
-                          variant="body2" 
-                          color="text.secondary"
-                          sx={{ mb: 1 }}
-                        >
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                           {receipt.location} • {receipt.items} item{receipt.items !== 1 ? 's' : ''}
                         </Typography>
 
-                        <Typography 
-                          variant="body2" 
-                          color="text.secondary"
-                          sx={{ mb: 2 }}
-                        >
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                           {receipt.date}
                         </Typography>
 
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}>
                           <Chip 
                             label={receipt.category} 
                             size="small" 
@@ -624,13 +800,7 @@ const ReceiptsPage = () => {
                             sx={{ borderRadius: '8px' }}
                           />
                           
-                          <Typography 
-                            variant="h6" 
-                            sx={{ 
-                              fontWeight: 600,
-                              color: 'primary.main' 
-                            }}
-                          >
+                          <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
                             {receipt.total}
                           </Typography>
                         </Box>
@@ -656,8 +826,6 @@ const ReceiptsPage = () => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
           }
         }}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
         <MenuItem onClick={handleDownloadPDF}>
           <ListItemIcon>
@@ -681,17 +849,17 @@ const ReceiptsPage = () => {
         </MenuItem>
       </Menu>
 
-      {/* Snackbar for notifications */}
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={8000}
+        autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          sx={{ width: '100%', borderRadius: '12px' }}
         >
           {snackbar.message}
         </Alert>
