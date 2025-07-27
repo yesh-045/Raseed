@@ -443,6 +443,7 @@ const DashboardPage = () => {
                 value={profile.name}
                 onChange={e => setProfile({ ...profile, name: e.target.value })}
                 fullWidth
+                sx={{ mt: '5px', mb: '3px' }}
               />
               <TextField
                 label="Email"
